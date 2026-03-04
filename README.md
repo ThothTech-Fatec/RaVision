@@ -1,112 +1,136 @@
-<img width="1920" height="720" alt="Image" src="" />
+<img width="1920" height="720" alt="Banner do Projeto" src="" />
+
+# 🧠 Ra Vision – Gerenciamento Inteligente de Regras de Negócio
 
 ## 🔍 Visão Geral
-Desenvolvido por nós, alunos da Fatec SJC Jessen Vidal, o GeoRah é um app para gestão de propriedades rurais. Com APIs do Google Maps e Plus Code, ele permite definir endereços, gerar rotas otimizadas e receber alertas em tempo real. Uma ferramenta inovadora para simplificar o trabalho no campo.
+Desenvolvido por nós, alunos do 6º semestre de ADS da Fatec São José dos Campos – Jessen Vidal, o **Ra Vision** é uma aplicação web para gerenciamento inteligente de regras de negócio com suporte de **IA Generativa**.
 
-## 🎯 Solução Proposta
+O sistema permite cadastrar, versionar, simular e explicar regras empresariais, promovendo maior rastreabilidade, transparência e redução de inconsistências operacionais.
+
+Parceiro Acadêmico: **Dom Rock**
+
+---
+
+## 🎯 Desafio do Semestre
+Empresas trabalham com regras de negócio dinâmicas que sofrem alterações constantes devido a campanhas, mudanças estratégicas e acordos comerciais.  
+
+Muitas dessas regras:
+- Não estão formalmente documentadas  
+- Geram conflitos operacionais  
+- Não possuem rastreabilidade  
+- São de conhecimento tácito  
+
+Nosso objetivo é desenvolver uma aplicação que organize essas regras e utilize **IA Generativa** para explicar decisões e apoiar a tomada de decisão empresarial.
+
+---
+
+## 🚀 Solução Proposta
 A aplicação oferecerá:
 
-- Autenticação segura de usuários.
-- Cadastro e gerenciamento de informações no banco de dados.
-- Visualização de dados em tempo real.
-- Integração com APIs externas.
-- Notificações push para alertas e interações rápidas.
+- Cadastro e versionamento de regras de negócio  
+- Simulação de aplicação de regras  
+- Explicação automática de decisões via LLM  
+- Identificação de possíveis conflitos  
+- Histórico e rastreabilidade das decisões  
+- Geração de relatórios explicativos  
 
-## 🧩 MVP
-<img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/92705c69-cde4-4625-89bb-add108756f69" />
+---
+
+## 🧩 MVP (Produto Mínimo Viável)
+
+O MVP contempla:
+
+- Cadastro de regras
+- Listagem de regras
+- Simulação de aplicação
+- Explicação automática da decisão
+- Histórico de execução
+
+---
+
+## 👥 Personas do Sistema
+
+- **Administrador de Regras** – Responsável por cadastrar e manter regras.
+- **Analista de Operações** – Aplica regras e precisa entender decisões.
+- **Gestor Comercial** – Avalia impacto financeiro das regras.
+- **Auditor Interno** – Necessita rastreabilidade e justificativas formais.
 
 ---
 
 ## 📃 Backlog do Produto
 
-| Rank | Prioridade | User Story | Estimativa | Sprint | Critério de Aceitação | Status |
-|------|------------|------------|------------|--------|-----------------------|--------|
-| 1 | Alta | Como usuário, quero logar com meu e-mail. | 5 pts | 1 | Usuário consegue logar com sucesso. | ✅ |
-| 2 | Alta | Como usuário, quero que minha sessão seja protegida com autenticação JWT/OAuth. | 3 pts | 1 | Apenas usuários autenticados conseguem acessar. | ✅ |
-| 4 | Alta | Como usuário, quero ver a listagem das minhas propriedades no app. | 5 pts | 1 | Propriedades vinculadas ao usuário aparecem listadas. | ✅ |
-| 5 | Alta | Como usuário, quero visualizar minhas propriedades no mapa interativo. | 8 pts | 1 | Propriedades aparecem como marcadores no mapa. | ✅ |
-| 3 | Média | Como visitante, quero acessar uma versão limitada do app sem login. | 2 pts | 1 | Visitantes acessam somente informações públicas. | ✅ |
-| 6 | Média | Como usuário, quero diferenciar propriedades com e sem endereço no mapa. | 3 pts | 1 | Marcadores mostram claramente se têm endereço ou não. | ✅ |
-| 8 | Média | Como usuário, quero definir o endereço da propriedade arrastando o marcador no mapa. | 5 pts | 3 | Endereço atualizado é salvo corretamente. | ⏳ |
-| 9 | Médiap | Como usuário, quero definir o endereço usando o GPS do dispositivo. | 5 pts | 3 | Coordenadas salvas automaticamente. | ⏳ |
-| 10 | Média | Como usuário, quero salvar coordenadas associadas a minha propriedade. | 3 pts | 2 | Dados persistem no sistema. | ✅ |
-| 11 | Média | Como usuário, quero gerar um certificado em PDF com meu endereço atualizado. | 5 pts | 2 | PDF é gerado corretamente. | ✅ |
-| 12 | Média | Como usuário, quero receber o certificado por e-mail automaticamente. | 3 pts | 2 | Usuário recebe o certificado no e-mail cadastrado. | ✅ |
-| 13 | Média | Como usuário, quero visualizar os dados fornecidos pelo cliente, incluindo área do projeto, área do imóvel e rotas. | 8 pts | 2 | Áreas e rotas aparecem vinculadas à propriedade. | ✅ |
-| 19 | Média | Como usuário, quero definir um ponto de entrada da propriedade para que o cálculo de rota utilize esse ponto como referência. | 5 pts | 3 | Rota usa o ponto de entrada definido pelo usuário. | ⏳ |
-| 7 | Baixa | Como usuário, quero validar no CAR para acessar minhas propriedades. | 5 pts | 2 | Usuário consegue acessar suas propriedades. | ✅ |
-| 14 | Baixa | Como usuário, quero planejar rotas entre duas propriedades. | 8 pts | 3 | Usuário visualiza caminho entre propriedades. | ⏳ |
-| 15 | Baixa | Como usuário, quero ver tempo, distância e rotas alternativas. | 5 pts | 3 | Informações aparecem corretamente. | ⏳ |
-| 16 | Baixa | Como usuário, quero criar alertas colaborativos sobre condições da estrada. | 5 pts | 3 | Alertas ficam visíveis no mapa. | ⏳ |
-| 17 | Baixa | Como usuário, quero receber alertas meteorológicos integrados de uma API de clima. | 5 pts | 3 | Alertas aparecem em tempo real. | ⏳ |
-| 18 | Baixa | Como usuário, quero que os alertas tenham validade/expiração automática. | 3 pts | 3 | Alertas vencidos desaparecem do mapa. | ⏳ |
-
-
-
-# ✅ Critérios de Aceitação Detalhados
-
- ### <a href="./Relatorios/Criterios/Sprint1.md">1️⃣ Critérios referentes à 1ª Sprint </a> 
- ### <a href="./Relatorios/Criterios/Sprint2.md">2️⃣ Critérios referentes à 2ª Sprint </a> 
- ### <a href="./Relatorios/Criterios/Sprint3.md">3️⃣ Critérios referentes à 3ª Sprint </a>  
+| Rank | Prioridade | User Story | Estimativa | Sprint | Status |
+|------|------------|------------|------------|--------|--------|
+| 1 | Alta | Como Administrador de Regras, quero cadastrar uma nova regra de negócio para formalizar decisões operacionais. | 5 | 1 | ⏳ |
+| 2 | Alta | Como Administrador de Regras, quero editar e versionar regras para manter histórico de alterações. | 8 | 1 | ⏳ |
+| 3 | Alta | Como Analista de Operações, quero simular a aplicação de uma regra para entender seu impacto antes de executá-la. | 8 | 1 | ⏳ |
+| 4 | Alta | Como Analista de Operações, quero que o sistema explique automaticamente a decisão utilizando IA Generativa para garantir transparência. | 13 | 2 | ⏳ |
+| 5 | Alta | Como Auditor Interno, quero visualizar o histórico de decisões aplicadas para garantir rastreabilidade. | 8 | 2 | ⏳ |
+| 6 | Média | Como Gestor Comercial, quero simular cenários alternativos alterando parâmetros da regra para avaliar impacto financeiro. | 13 | 3 | ⏳ |
+| 7 | Média | Como Administrador de Regras, quero que o sistema identifique possíveis conflitos entre regras cadastradas para evitar inconsistências. | 13 | 3 | ⏳ |
+| 8 | Média | Como Administrador de Regras, quero que a IA sugira melhorias na redação da regra para torná-la mais clara. | 8 | 3 | ⏳ |
+| 9 | Média | Como Auditor Interno, quero exportar relatório explicativo em PDF das decisões para documentação formal. | 5 | 4 | ⏳ |
+| 10 | Baixa | Como Gestor Comercial, quero receber alertas quando regras forem alteradas para acompanhar mudanças estratégicas. | 5 | 4 | ⏳ |
 
 ---
 
 ## 📈 Requisitos Funcionais
-- Autenticação e cadastro de usuários.
-- Consumo de APIs externas e internas.
-- Gerenciamento de dados com banco relacional.
-- Geração de relatórios em PDF.
-- Notificações push integradas.
 
-## 📊 Requisitos Não Funcionais
-- **Segurança**: JWT/OAuth para autenticação.  
-- **Usabilidade**: Interface amigável e responsiva.  
-- **Desempenho**: Respostas rápidas em consultas e requisições.  
-- **Escalabilidade**: Suporte a múltiplos usuários simultâneos.  
-- **Portabilidade**: Compatível com dispositivos móveis.
+- CRUD completo de regras de negócio  
+- Versionamento de regras  
+- Simulação de aplicação  
+- Explicação automatizada via LLM  
+- Registro de histórico de execuções  
+- Geração de relatórios  
 
 ---
 
-## 🧷 Sprints
- ### <a href="./Relatorios/Sprint 1.md">1️⃣SPRINT 1 - Entrega: 28/09/2025) </a> 
- ### <a href="./Relatorios/Sprint 2.md">2️⃣SPRINT 2 - Entrega: 26/10/2025) </a> 
- ### <a href="./Relatorios/Sprint 3.md">3️⃣SPRINT 3 - Entrega: 23/11/2025) </a>  
+## 📊 Requisitos Não Funcionais
+
+- **SpringBoot** para Backend  
+- **Vue.js (SPA)** para Frontend  
+- Integração com **Modelos LLM via API pública**  
+- Utilização de framework como **LangChain / LangGraph / LlamaIndex**  
+- Manual de Instalação  
+- Manual do Usuário  
+- Vídeo tutorial demonstrativo  
+- Segurança e controle de acesso  
 
 ---
 
 ## 🛠️ Tecnologias
-- **Frontend (Mobile)**
-  - React Native (Expo)  
-  - TypeScript  
-  - React Navigation  
-  - Redux Toolkit / Context API  
-  - Axios / React Query  
-  - Styled Components / Nativewind  
 
-- **Backend**
-  - Python (FastAPI ou Flask)  
-  - SQLAlchemy  
-  - PostgreSQL / SQLite  
-  - Docker  
+### Backend
+- SpringBoot  
+- Java  
+- PostgreSQL  
 
-- **Serviços**
-  - Firebase (notificações push e autenticação)  
-  - Supabase (alternativa a Firebase)  
-  - ReportLab / PDFKit (geração de PDFs)  
-  - GitHub / Jira (controle de versão e gestão ágil)  
+### Frontend
+- Vue.js (SPA)  
+- TypeScript   
 
-- **Testes**
-  - Jest (frontend)  
-  - Pytest (backend)  
+### IA Generativa
+- Integração com API LLM (OpenAI / Gemini / Hugging Face)  
+- Framework de orquestração (LangChain ou similar)  
+
+### DevOps
+- Docker  
+- GitHub   
 
 ---
 
-## 🎓 Time
-| Nome | Função | GitHub | LinkedIn |
-|------|--------|--------|----------|
-|Lucas Kendi | Scrum Master|[<img src="https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white">](https://github.com/Subinoonibus) | [<img src="https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white">](https://www.linkedin.com/in/vin%C3%ADcius-henrique-souza-4085b1226/)
-|  Gustavo Henrique   | Product Owner | [<img src="https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white">](https://github.com/HenryBRG)| [<img src="https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white">](https://www.linkedin.com/in/gustavo-henrique-braga-b92544252/)|
-|  Márcio Gabriel  | Dev Team |[<img src="https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white">](https://github.com/Porisso90) | [<img src="https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white">](https://www.linkedin.com/in/m%C3%A1rcio-gabriel-426b0527b/)
-| Flávio Gonçalves| Dev Team | [<img src="https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white">](https://github.com/flaviogcunha)|[<img src="https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white">](https://www.linkedin.com/in/flavio-gon%C3%A7alves-21aa91261/) |
-|Gustavo Badim | Dev Team |[<img src="https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white">](https://github.com/gubasssss) |[<img src="https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white">](https://www.linkedin.com/in/gustavo-badim-8538b7285)
-| Vinicius Henrique| Dev Team | [<img src="https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white">](https://github.com/Subinoonibus) | [<img src="https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white">](https://www.linkedin.com/in/vin%C3%ADcius-henrique-souza-4085b1226/) |
+## 🌿 Estratégia de Branch
+
+Utilizaremos o modelo **GitHub Flow**:
+
+- `main` → versão estável  
+- `feature/nome-da-feature`  
+- `bugfix/nome-do-bug`  
+
+Todo desenvolvimento ocorre em branch separada com abertura obrigatória de **Pull Request** antes do merge.
+
+---
+
+## 📝 Padrão de Commits
+
+Seguiremos o padrão simplificado de Conventional Commits:
