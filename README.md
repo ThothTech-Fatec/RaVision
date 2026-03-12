@@ -78,6 +78,12 @@ O MVP contempla:
 
 ---
 
+# ✅ Critérios de Aceitação Detalhados
+
+ ### <a href="./Relatório/Sprint1.md">1️⃣ Critérios referentes à 1ª Sprint </a> 
+ 
+---
+
 #### 🚦 Definition of Ready (DoR)
 O DoR representa o nosso acordo de equipe indicando quando uma *User Story* está preparada para ter seu desenvolvimento iniciado em uma Sprint. Uma tarefa só será puxada para desenvolvimento se cumprir os seguintes critérios de checklist:
 
