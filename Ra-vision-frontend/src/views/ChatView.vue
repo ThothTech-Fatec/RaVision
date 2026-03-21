@@ -116,11 +116,11 @@ function logout() {
     </header>
 
     <!-- Área de mensagens -->
-    <div class="flex-1 overflow-y-auto">
-      <div class="max-w-3xl mx-auto px-4 py-6 space-y-5">
+    <div class="flex-1 overflow-y-auto flex flex-col">
+      <div class="flex-1 max-w-3xl w-full mx-auto px-4 py-6 space-y-5 flex flex-col">
 
         <!-- Estado vazio: boas-vindas -->
-        <div v-if="messages.length === 0" class="flex flex-col items-center justify-center min-h-[calc(100vh-220px)] text-center px-4">
+        <div v-if="messages.length === 0" class="flex flex-col items-center justify-center flex-1 text-center px-4">
           <div class="w-16 h-16 bg-linear-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-xl shadow-indigo-200 mb-5">
             <svg class="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
               <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
