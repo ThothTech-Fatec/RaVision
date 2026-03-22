@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
+import ChatSidebar from '@/components/ChatSidebar.vue'
+
+const sidebarOpen = ref(true)
 
 const router = useRouter()
 
@@ -72,37 +75,35 @@ function logout() {
 </script>
 
 <template>
-  <div class="h-screen flex flex-col bg-slate-50 overflow-hidden">
+  <div class="h-screen flex flex-row bg-slate-50 overflow-hidden">
+
+    <!-- Sidebar -->
+    <ChatSidebar :open="sidebarOpen" @toggle="sidebarOpen = !sidebarOpen" @new-chat="newChat" />
+
+    <!-- Área principal -->
+    <div class="flex-1 flex flex-col overflow-hidden min-w-0">
+
     <!-- Header -->
-    <header class="flex items-center gap-3 px-5 py-3.5 bg-white border-b border-slate-200 shadow-sm shrink-0">
-      <!-- Logo + nome da IA -->
-      <div class="flex items-center gap-3 flex-1 min-w-0">
-        <div class="relative shrink-0">
-          <div class="w-9 h-9 bg-linear-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-md shadow-indigo-200">
-            <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-            </svg>
-          </div>
-        </div>
-        <div class="min-w-0">
-          <h1 class="text-sm font-bold text-slate-800 leading-tight">Ra Vision IA</h1>
-          <p class="text-xs text-slate-400">Assistente de negócios</p>
-        </div>
+    <header class="flex items-center gap-2 px-4 py-3.5 bg-white border-b border-slate-200 shadow-sm shrink-0">
+      <!-- Toggle sidebar (mobile) -->
+      <button
+        @click="sidebarOpen = !sidebarOpen"
+        class="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors shrink-0 md:hidden"
+        title="Menu"
+      >
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+
+      <!-- Título -->
+      <div class="flex-1 min-w-0">
+        <h1 class="text-sm font-bold text-slate-800 leading-tight">Ra Vision IA</h1>
+        <p class="text-xs text-slate-400">Assistente de negócios</p>
       </div>
 
       <!-- Ações -->
       <div class="flex items-center gap-1">
-        <button
-          @click="newChat"
-          class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors"
-          title="Nova conversa"
-        >
-          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-          <span class="hidden sm:inline">Nova conversa</span>
-        </button>
-
         <button
           @click="logout"
           class="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
@@ -232,5 +233,6 @@ function logout() {
         <p class="text-xs text-slate-400 text-center mt-1.5">Enter para enviar · Shift+Enter para nova linha</p>
       </div>
     </div>
+    </div><!-- fim área principal -->
   </div>
 </template>
