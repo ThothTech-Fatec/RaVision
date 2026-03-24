@@ -26,34 +26,31 @@ Nosso objetivo é desenvolver uma aplicação que organize essas regras e utiliz
 
 ## 🚀 Solução Proposta
 A aplicação oferecerá:
+*  Importação e cruzamento estruturado de bases de dados mensais (RH, Vendas e Comissionamento).
+*  Cálculo automatizado de comissões base e proporcionais (férias, admissões, atestados e múltiplas lojas).
+*  Aplicação de bônus sazonais e regras específicas por cargo (Vendedor vs. Gerente).
+*  Assistente virtual via chat alimentado por IA Generativa (LLM) para explicar a matemática e justificar os cálculos das comissões de cada funcionário.
+*  Detecção de anomalias e desvios estatísticos para prevenção de falhas e fraudes na folha de pagamento.
+*  Dashboards gerenciais e rastreabilidade de histórico para auditoria.
 
-- Cadastro e versionamento de regras de negócio  
-- Simulação de aplicação de regras  
-- Explicação automática de decisões via LLM  
-- Identificação de possíveis conflitos  
-- Histórico e rastreabilidade das decisões  
-- Geração de relatórios explicativos  
-
----
+--------------------------------------------------------------------------------
 
 ## 🧩 MVP (Produto Mínimo Viável)
-
 O MVP contempla:
-
-- Cadastro de regras
-- Listagem de regras
-- Simulação de aplicação
-- Explicação automática da decisão
-- Histórico de execução
+*  Interface web para importação das planilhas de competência.
+*  Motor de processamento de regras trabalhistas (exceções, atestados, férias, demissões).
+*  Interface de chat (IA) para perguntas e explicações sobre o cálculo de funcionários específicos.
+*  Identificação de anomalias no fechamento das comissões.
+*  Painel de histórico de processamentos anteriores.
 
 ---
 
 ## 👥 Personas do Sistema
 
-- **Administrador de Regras** – Responsável por cadastrar e manter regras.
-- **Analista de Operações** – Aplica regras e precisa entender decisões.
-- **Gestor Comercial** – Avalia impacto financeiro das regras.
-- **Auditor Interno** – Necessita rastreabilidade e justificativas formais.
+-  **Administrador de Regras**  – Responsável por importar as bases mensais e manter o histórico de processamentos.
+-  **Analista de Operações**  – Interage com o chat do assistente para tirar dúvidas e precisa entender a matemática dos cálculos de comissão.
+-  **Gestor de RH**  – Avalia o impacto financeiro, aprova as campanhas de bônus e identifica possíveis anomalias e fraudes.
+-  **Auditor Interno**  – Necessita de rastreabilidade do histórico de mudanças para fins de compliance.
 
 ---
 
@@ -64,14 +61,15 @@ O MVP contempla:
 | 2 | Alta | Como Analista de Operações, quero conversar com o assistente por meio de uma interface de chat, para realizar perguntas diretas sobre os valores de comissionamento de um funcionário específico. | 8 | 1 | ⏳ |
 | 3 | Alta | Como Analista de Operações, quero que o assistente calcule as comissões básicas (vendas individuais para vendedores e total de loja para gerentes), para agilizar o fechamento inicial da folha de pagamento. | 13 | 1 | ⏳ |
 | 4 | Alta | Como Analista de Operações, quero que o sistema calcule proporcionalmente as comissões de funcionários com férias, admissão ou demissão no mês, para evitar pagamentos indevidos. | 13 | 1 | ⏳ |
-| 5 | Alta | Como Analista de Operações, quero que o sistema aplique as regras de afastamento médico (maior ou menor que 15 dias com o piso salarial de R$ 3.500), para garantir o cumprimento da legislação trabalhista. | 13 | 2 | ⏳ |
-| 6 | Alta | Como Gestor Comercial, quero que o sistema identifique e aplique bônus sazonais como tempo de casa, prêmios por faixas de vendas e black friday, para incentivar a equipe corretamente. | 8 | 2 | ⏳ |
-| 7 | Alta | Como Analista de Operações, quero que o assistente me explique passo a passo a matemática usada para chegar no valor final da comissão, para eu conseguir justificar o cálculo caso o vendedor reclame. | 13 | 2 | ⏳ |
-| 8 | Média | Como Administrador de Regras, quero visualizar um histórico com os resultados dos processamentos anteriores, para ter rastreabilidade em caso de auditorias. | 8 | 2 | ⏳ |
-| 9 | Média | Como Analista de Operações, quero classificar se o cálculo e a explicação do assistente foram satisfatórios, para alertar os administradores sobre inconsistências antes do fechamento da folha de pagamento. | 5 | 3 | ⏳ |
-| 10 | Média | Como Gestor Comercial, quero visualizar painéis e gráficos com os totais de comissões pagas por loja e marca, para analisar rapidamente o impacto financeiro das campanhas do mês. | 13 | 3 | ⏳ |
-| 11 | Média | Como CTO da Dom Rock, quero monitorar o tempo de resposta e a quantidade de perguntas feitas ao assistente, para garantir que a plataforma está estável e eficiente. | 5 | 3 | ⏳ |
-| 12 | Baixa | Como Administrador de Regras, quero ser alertado na interface se as planilhas importadas contiverem erros (ex: funcionário sem data de admissão), para corrigir os dados antes de gerar os pagamentos. | 8 | 3 | ⏳ |
+| 5 | Alta | Como Analista de Operações, quero que o sistema identifique funcionários trabalhando no mesmo mês em lojas diferentes, para que possa remunerar correta e proporcionalmente o seu esforço pontual de trabalho. | 8 | 2 | ⏳ |
+| 6 | Alta | Como Analista de Operações, quero que o sistema aplique as regras de afastamento médico (maior ou menor que 15 dias com o piso salarial de R$ 3.500), para garantir o cumprimento da legislação trabalhista. | 13 | 2 | ⏳ |
+| 7 | Alta | Como Gestor de RH, quero que o sistema identifique e aplique bônus sazonais como tempo de casa, prêmios por faixas de vendas e black friday, para incentivar a equipe corretamente. | 8 | 2 | ⏳ |
+| 8 | Alta | Como Analista de Operações, quero que o assistente me explique passo a passo a matemática usada para chegar no valor final da comissão, para eu conseguir justificar o cálculo caso o vendedor reclame. | 13 | 2 | ⏳ |
+| 9 | Média | Como Administrador de Regras, quero visualizar um histórico com os resultados dos processamentos anteriores, para ter rastreabilidade em caso de auditorias. | 8 | 2 | ⏳ |
+| 10 | Média | Como Gestor de RH, quero que o sistema identifique anomalias no cálculo de comissionamento (ex: desvios relevantes ou vendas muito acima da média), para analisar inconsistências e fraudes antes do fechamento da folha. | 8 | 3 | ⏳ |
+| 11 | Média | Como Gestor de RH, quero visualizar painéis e gráficos com os totais de comissões pagas por loja e marca, para analisar rapidamente o impacto financeiro das campanhas do mês. | 13 | 3 | ⏳ |
+| 12 | Média | Como CTO da Dom Rock, quero monitorar o tempo de resposta e a quantidade de perguntas feitas ao assistente, para garantir que a plataforma está estável e eficiente. | 5 | 3 | ⏳ |
+| 13 | Baixa | Como Administrador de Regras, quero ser alertado na interface se as planilhas importadas contiverem erros (ex: funcionário sem data de admissão), para corrigir os dados antes de gerar os pagamentos. | 8 | 3 | ⏳ |
 
 ---
 
@@ -172,4 +170,22 @@ Todo desenvolvimento ocorre em branch separada com abertura obrigatória de **Pu
 
 ## 📝 Padrão de Commits
 
-Seguiremos o padrão simplificado de Conventional Commits:
+A padronização de mensagens de commits é uma prática importante, pois ajuda na compreensão do histórico do projeto e facilita a criação de ferramentas automatizadas. Nosso projeto segue um padrão convencional e simplificado:
+
+**`<tipo> (<id_demanda1>, <id_demanda2>, ..., <id_demandaN>): <descrição da entrega feita no commit>`**
+
+**Onde:**
+* **`<id_demandaN>`**: Identificador da demanda criada na ferramenta de gestão de Tarefas/Stories (ex: Jira).
+* **`<descrição da entrega feita no commit>`**: Descrição clara sobre o que está sendo entregue no commit criado e enviado para o repositório.
+
+**Tabela de Tipos (`<tipo>`):**
+
+| Tipo | Descrição | Exemplo Prático |
+| ------ | ------ | ------ |
+| **`feat`** | Quando ocorre a adição de um recurso ou uma nova funcionalidade. | `feat (US-01, US-02): Implementação dos repositórios usados nas operações` |
+| **`fix`** | Correção de um bug no sistema. | `fix (#45): Correção do componente de seleção de município` |
+| **`docs`** | Atualização ou criação de arquivos de documentação. | `docs (#45): inclusão de diagrama de modelo de BD para a aplicação` |
+| **`style`** | Mudança de formatação, sem afetar o comportamento do código. | `style (US-04): ajuste de nomes de variáveis para o padrão camelCase` |
+| **`refactor`** | Refatoração estrutural do código, sem alterar sua funcionalidade final. | `refactor (US-03): otimização da função de cálculo de comissão` |
+| **`test`** | Adição ou modificação de testes automatizados. | `test (US-01): criacao de testes unitarios para a importacao de planilhas` |
+| **`chore`** | Atualizações menores que não impactam diretamente a funcionalidade do código (ex: dependências, build). | `chore (#12): atualizacao da versao do framework no arquivo de dependencias` |
