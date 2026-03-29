@@ -9,6 +9,6 @@ import java.util.List;
 
 @Repository
 public interface BaseVendasRepository extends JpaRepository<BaseVendas, Long> {
-    List<BaseVendas> findByDateRef(LocalDate dateRef);
     void deleteByDateRef(LocalDate dateRef);
+    List<BaseVendas> findByDateRef(LocalDate dateRef);
 }
