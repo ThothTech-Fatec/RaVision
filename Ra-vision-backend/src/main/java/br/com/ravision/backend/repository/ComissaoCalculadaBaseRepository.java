@@ -1,6 +1,6 @@
 package br.com.ravision.backend.repository;
 
-import br.com.ravision.backend.domain.BaseRH;
+import br.com.ravision.backend.domain.ComissaoCalculadaBase;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -8,7 +8,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 @Repository
-public interface BaseRHRepository extends JpaRepository<BaseRH, Long> {
+public interface ComissaoCalculadaBaseRepository extends JpaRepository<ComissaoCalculadaBase, Long> {
     void deleteByDateRef(LocalDate dateRef);
-    List<BaseRH> findByDateRef(LocalDate dateRef);
+    List<ComissaoCalculadaBase> findByDateRef(LocalDate dateRef);
 }
