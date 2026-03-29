@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 defineProps<{ open: boolean }>()
 const emit = defineEmits<{ toggle: []; 'new-chat': [] }>()
@@ -86,7 +89,7 @@ function selectChat(id: number) {
     </div>
 
     <!-- Nova conversa -->
-    <div :class="['py-3 shrink-0', open ? 'px-3' : 'px-2']">
+    <div :class="['py-3 shrink-0 space-y-2', open ? 'px-3' : 'px-2']">
       <button
         @click="emit('new-chat')"
         :class="[
@@ -100,6 +103,21 @@ function selectChat(id: number) {
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
         </svg>
         <span v-if="open">Nova conversa</span>
+      </button>
+
+      <button
+        @click="router.push('/importar')"
+        :class="[
+          'w-full flex items-center gap-2.5 rounded-xl transition-colors text-sm font-medium',
+          'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200',
+          open ? 'px-3 py-2.5' : 'justify-center px-2 py-2.5',
+        ]"
+        title="Importar Dados"
+      >
+        <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+        </svg>
+        <span v-if="open">Importar Dados</span>
       </button>
     </div>
 
