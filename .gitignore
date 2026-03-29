@@ -1,0 +1,40 @@
+# ===== Node.js / Frontend (Vue) =====
+node_modules/
+dist/
+dist-ssr/
+.npm/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ===== Java / Backend (Spring Boot / Maven) =====
+target/
+!.mvn/wrapper/maven-wrapper.jar
+log/
+logs/
+*.log
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+
+# ===== IDEs / Editores =====
+.idea/
+.vscode/
+*.iml
+*.iws
+*.sublime-project
+*.sublime-workspace
+.project
+.classpath
+.settings/
+
+# ===== Arquivos Específicos do Sistema Operacional =====
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
