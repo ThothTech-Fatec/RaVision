@@ -37,4 +37,19 @@ logs/
 .Spotlight-V100
 .Trashes
 ehthumbs.db
-Thumbs.db
+# ===== Python / AI (FastAPI) =====
+Ra-vision-ai/__pycache__/
+Ra-vision-ai/.pytest_cache/
+Ra-vision-ai/venv/
+*.pyc
+*.pyo
+.python-version
+dist/
+build/
+*.egg-info/
+.ipynb_checkpoints/
+
+# ===== Segurança e Ambiente Geral =====
+.env
+.env.*
+!.env.example
