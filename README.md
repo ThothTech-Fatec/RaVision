@@ -60,19 +60,23 @@ O MVP contempla:
 #### 📃 Backlog do Produto
 | Rank | Prioridade | User Story | Estimativa | Sprint | Status |
 | ------ | ------ | ------ | ------ | ------ | ------ |
-| 1 | Alta | Como Administrador de Regras, quero uma interface web para importar as planilhas mensais de RH, Vendas e Comissões, para que o sistema tenha os dados exatos para calcular o mês de competência. | 8 | 1 | ⏳ |
-| 2 | Alta | Como Analista de Operações, quero conversar com o assistente por meio de uma interface de chat, para realizar perguntas diretas sobre os valores de comissionamento de um funcionário específico. | 8 | 1 | ⏳ |
-| 3 | Alta | Como Analista de Operações, quero que o assistente calcule as comissões básicas (vendas individuais para vendedores e total de loja para gerentes), para agilizar o fechamento inicial da folha de pagamento. | 13 | 1 | ⏳ |
-| 4 | Alta | Como Analista de Operações, quero que o sistema calcule proporcionalmente as comissões de funcionários com férias, admissão ou demissão no mês, para evitar pagamentos indevidos. | 13 | 1 | ⏳ |
-| 5 | Alta | Como Analista de Operações, quero que o sistema identifique funcionários trabalhando no mesmo mês em lojas diferentes, para que possa remunerar correta e proporcionalmente o seu esforço pontual de trabalho. | 8 | 2 | ⏳ |
-| 6 | Alta | Como Analista de Operações, quero que o sistema aplique as regras de afastamento médico (maior ou menor que 15 dias com o piso salarial de R$ 3.500), para garantir o cumprimento da legislação trabalhista. | 13 | 2 | ⏳ |
-| 7 | Alta | Como Gestor de RH, quero que o sistema identifique e aplique bônus sazonais como tempo de casa, prêmios por faixas de vendas e black friday, para incentivar a equipe corretamente. | 8 | 2 | ⏳ |
-| 8 | Alta | Como Analista de Operações, quero que o assistente me explique passo a passo a matemática usada para chegar no valor final da comissão, para eu conseguir justificar o cálculo caso o vendedor reclame. | 13 | 2 | ⏳ |
-| 9 | Média | Como Administrador de Regras, quero visualizar um histórico com os resultados dos processamentos anteriores, para ter rastreabilidade em caso de auditorias. | 8 | 2 | ⏳ |
-| 10 | Média | Como Gestor de RH, quero que o sistema identifique anomalias no cálculo de comissionamento (ex: desvios relevantes ou vendas muito acima da média), para analisar inconsistências e fraudes antes do fechamento da folha. | 8 | 3 | ⏳ |
-| 11 | Média | Como Gestor de RH, quero visualizar painéis e gráficos com os totais de comissões pagas por loja e marca, para analisar rapidamente o impacto financeiro das campanhas do mês. | 13 | 3 | ⏳ |
-| 12 | Média | Como CTO da Dom Rock, quero monitorar o tempo de resposta e a quantidade de perguntas feitas ao assistente, para garantir que a plataforma está estável e eficiente. | 5 | 3 | ⏳ |
-| 13 | Baixa | Como Administrador de Regras, quero ser alertado na interface se as planilhas importadas contiverem erros (ex: funcionário sem data de admissão), para corrigir os dados antes de gerar os pagamentos. | 8 | 3 | ⏳ |
+| 1 | Alta | Como Administrador de Regras, quero uma interface web para importar as planilhas mensais de RH, Vendas e Comissões, para que o sistema tenha os dados exatos para calcular o mês de competência. | 8 | 1 | ✅ Concluído |
+| 2 | Alta | Como Analista de Operações, quero conversar com o assistente por meio de uma interface de chat, para realizar perguntas diretas sobre os valores de comissionamento de um funcionário específico. | 8 | 1 | ✅ Concluído |
+| 3 | Alta | Como Analista de Operações, quero que o assistente calcule as comissões básicas (vendas individuais para vendedores e total de loja para gerentes), para agilizar o fechamento inicial da folha de pagamento. | 13 | 1 | ✅ Concluído |
+| 4 | Alta | Como Analista de Operações, quero que o sistema calcule proporcionalmente as comissões de funcionários com férias, admissão ou demissão no mês, para evitar pagamentos indevidos. | 13 | 1 | ✅ Concluído |
+| 5 | Alta | Como Administrador do Sistema, quero estabelecer níveis de acesso no projeto, para garantir a segurança e controle de acesso, assegurando que uma regra seja auditada antes de ser lançada. | 8 | 2 | ⏳ |
+| 6 | Alta | Como Administrador de Regras, quero uma interface de gerenciamento que me permita criar e editar regras de negócio conversando diretamente com a IA pelo chat, para que o gerenciamento seja ágil e em linguagem natural. | 13 | 2 | ⏳ |
+| 7 | Alta | Como Gestor de RH (ou Auditor Interno), quero receber as novas regras de negócio geradas pela IA em um status 'Pendente', para que eu possa revisar, auditar e então aceitar ou recusar a aplicação da regra antes que ela tenha validade no sistema. | 8 | 2 | ⏳ |
+| 8 | Alta | Como Analista de Operações, quero que o sistema identifique funcionários trabalhando no mesmo mês em lojas diferentes, para que possa remunerar correta e proporcionalmente o seu esforço pontual de trabalho. | 8 | 2 | ⏳ |
+| 9 | Alta | Como Analista de Operações, quero que o sistema aplique as regras de afastamento médico (maior ou menor que 15 dias com o piso salarial de R$ 3.500), para garantir o cumprimento da legislação trabalhista. | 13 | 2 | ⏳ |
+| 10 | Alta | Como Gestor de RH, quero que o sistema identifique e aplique bônus sazonais como tempo de casa, prêmios por faixas de vendas e black friday, para incentivar a equipe corretamente. | 8 | 2 | ⏳ |
+| 11 | Alta | Como Analista de Operações, quero que o assistente me explique passo a passo a matemática usada para chegar no valor final da comissão, para eu conseguir justificar o cálculo. | 13 | 2 | ⏳ |
+| 12 | Média | Como Administrador de Regras, quero visualizar um histórico com os resultados dos processamentos anteriores, para ter rastreabilidade em caso de auditorias. | 8 | 2 | ⏳ |
+| 13 | Média | Como Gestor de RH, quero que o sistema identifique anomalias no cálculo de comissionamento (ex: desvios relevantes ou vendas muito acima da média), para analisar inconsistências e fraudes antes do fechamento da folha. | 8 | 3 | ⏳ |
+| 14 | Média | Como Gestor de RH, quero visualizar painéis e gráficos com os totais de comissões pagas por loja e marca, para analisar rapidamente o impacto financeiro das campanhas do mês. | 13 | 3 | ⏳ |
+| 15 | Média | Como CTO da Dom Rock, quero monitorar o tempo de resposta e a quantidade de perguntas feitas ao assistente, para garantir que a plataforma está estável e eficiente. | 5 | 3 | ⏳ |
+| 16 | Baixa | Como Administrador de Regras, quero ser alertado na interface se as planilhas importadas contiverem erros (ex: funcionário sem data de admissão), para corrigir os dados antes de gerar os pagamentos. | 8 | 3 | ⏳ |
+
 
 ---
 
