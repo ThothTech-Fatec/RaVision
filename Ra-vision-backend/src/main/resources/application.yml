@@ -18,3 +18,8 @@ server:
     multipart:
       max-file-size: 50MB
       max-request-size: 50MB
+
+# JWT Configuration
+jwt:
+  secret: UmFWaXNpb25TZWNyZXRLZXkyMDI2UHJvamV0b0RvbVJvY2tTcHJpbnQwMg==
+  expiration: 86400000

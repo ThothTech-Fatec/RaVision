@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -39,15 +39,17 @@ def get_competencias():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/chat", response_model=ChatResponse)
-async def chat_endpoint(request: ChatRequest):
+async def chat_endpoint(request: ChatRequest, req: Request):
     """
     Endpoint principal que recebe a mensagem do usuário e retorna a explicação da IA.
     """
     if not request.message:
         raise HTTPException(status_code=400, detail="Mensagem vazia")
     
+    auth_header = req.headers.get("Authorization")
+    
     try:
-        response_text = await process_user_query(request.message, request.dateRef)
+        response_text = await process_user_query(request.message, request.dateRef, auth_header)
         return ChatResponse(response=response_text)
     except Exception as e:
         print(f"Erro no endpoint de chat: {e}")

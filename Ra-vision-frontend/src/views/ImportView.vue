@@ -42,10 +42,13 @@ async function uploadFiles() {
   formData.append('vendas', fileVendas.value)
   formData.append('comissao', fileComissao.value)
 
+  const token = localStorage.getItem('token')
+
   try {
     const response = await fetch('http://localhost:8080/api/upload', {
       method: 'POST',
       body: formData,
+      headers: { Authorization: `Bearer ${token}` },
     })
 
     const result = await response.text()
@@ -74,6 +77,7 @@ function newChat() {
 }
 
 function logout() {
+  localStorage.clear()
   router.push('/')
 }
 </script>
