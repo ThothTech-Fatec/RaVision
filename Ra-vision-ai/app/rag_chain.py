@@ -13,6 +13,7 @@ from .database import (
 )
 from .intent_parser import parse_intent
 from .prompts import SYSTEM_PROMPT, build_context_prompt
+from .tools import criar_regra_negocio_dinamica
 
 def get_rag_chain():
     """
@@ -40,7 +41,7 @@ def get_rag_chain():
     chain = prompt | chat_model | StrOutputParser()
     return chain
 
-async def process_user_query(message: str, date_ref: str):
+async def process_user_query(message: str, date_ref: str, auth_header: str = None):
     """
     Pipeline RAG completo com logs detalhados para debug.
     """
@@ -51,6 +52,58 @@ async def process_user_query(message: str, date_ref: str):
         target_date = intent.date_ref or date_ref
         
         print(f"DEBUG: Processando query. Msg: {message}, Data Alvo: {target_date}, Tipo: {intent.tipo_consulta}")
+        
+        # 1.5 Handle Tool Calling (Criar Regra)
+        if intent.tipo_consulta == "criar_regra":
+            print("DEBUG: Iniciando fluxo de criação de regra com LangChain Tool Calling...")
+            try:
+                # Setar o token de auth no módulo tools
+                import app.tools as tools_module
+                tools_module.current_auth_token = auth_header
+                
+                # Configurar LLM compatível com Tool Calling
+                llm = ChatHuggingFace(
+                    llm=HuggingFaceEndpoint(
+                        repo_id="meta-llama/Llama-3.3-70B-Instruct",
+                        task="text-generation",
+                        max_new_tokens=1024,
+                        temperature=0.1,
+                        huggingfacehub_api_token=os.getenv("HUGGINGFACEHUB_API_TOKEN")
+                    )
+                )
+                
+                # Bind the tool
+                llm_with_tools = llm.bind_tools([criar_regra_negocio_dinamica])
+                
+                # Prompt specific for rule creation
+                rule_prompt = ChatPromptTemplate.from_messages([
+                    ("system", "Você é um assistente de RH. O usuário quer criar uma regra de negócio. Extraia os dados da mensagem e chame a ferramenta 'criar_regra_negocio_dinamica'. O tipo da regra deve ser OVERRIDE_PERCENTUAL, BONUS_FIXO, FAIXA_VENDAS ou BLACK_FRIDAY. Se o usuário não disser a competência, use {date_ref}. Se o usuário pedir para criar um bônus de 500 reais para todos, você cria um BONUS_FIXO com valor 500, condicoes vazio. Responda amigavelmente informando o resultado retornado pela ferramenta."),
+                    ("user", "{input}")
+                ])
+                
+                chain = rule_prompt | llm_with_tools
+                response_msg = chain.invoke({"input": message, "date_ref": target_date})
+                
+                # Check if tool was called
+                if response_msg.tool_calls:
+                    print(f"DEBUG: Tool calls geradas: {response_msg.tool_calls}")
+                    # Executar a tool
+                    tool_call = response_msg.tool_calls[0]
+                    tool_result = criar_regra_negocio_dinamica.invoke(tool_call["args"])
+                    
+                    # Segunda passagem para a resposta final
+                    final_chain = rule_prompt | llm
+                    final_response = final_chain.invoke({
+                        "input": f"O usuário pediu: '{message}'. Eu chamei a ferramenta e o resultado foi: '{tool_result}'. Comunique esse resultado ao usuário de forma amigável.",
+                        "date_ref": target_date
+                    })
+                    return final_response.content
+                else:
+                    return response_msg.content
+                
+            except Exception as tool_err:
+                print(f"ERROR no Tool Calling: {tool_err}")
+                return f"Houve um erro ao tentar criar a regra via IA: {tool_err}"
         
         # 2. Retrieval
         context_data = {

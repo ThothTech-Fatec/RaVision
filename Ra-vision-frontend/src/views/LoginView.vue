@@ -1,22 +1,45 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import axios from 'axios'
 
 const router = useRouter()
 
-const email = ref('')
+const username = ref('')
 const password = ref('')
-const rememberMe = ref(false)
 const showPassword = ref(false)
 const isLoading = ref(false)
+const errorMessage = ref('')
 
 async function handleLogin() {
-  if (!email.value || !password.value) return
+  if (!username.value || !password.value) return
   isLoading.value = true
-  // TODO: conectar com backend
-  await new Promise((resolve) => setTimeout(resolve, 800))
-  isLoading.value = false
-  router.push('/chat')
+  errorMessage.value = ''
+
+  try {
+    const response = await axios.post('http://localhost:8080/api/auth/login', {
+      username: username.value,
+      password: password.value,
+    })
+
+    const { token, username: user, role } = response.data
+
+    localStorage.setItem('token', token)
+    localStorage.setItem('username', user)
+    localStorage.setItem('role', role)
+
+    router.push('/chat')
+  } catch (error: any) {
+    if (error.response?.status === 401) {
+      errorMessage.value = 'Usuário ou senha inválidos.'
+    } else if (error.response?.data?.error) {
+      errorMessage.value = error.response.data.error
+    } else {
+      errorMessage.value = 'Erro ao conectar com o servidor. Verifique se o backend está rodando.'
+    }
+  } finally {
+    isLoading.value = false
+  }
 }
 </script>
 
@@ -84,20 +107,41 @@ async function handleLogin() {
           <p class="text-slate-500">Entre com suas credenciais para continuar</p>
         </div>
 
+        <!-- Erro -->
+        <Transition
+          enter-active-class="transition duration-300 ease-out"
+          enter-from-class="opacity-0 -translate-y-2"
+          enter-to-class="opacity-100 translate-y-0"
+          leave-active-class="transition duration-200 ease-in"
+          leave-from-class="opacity-100"
+          leave-to-class="opacity-0"
+        >
+          <div
+            v-if="errorMessage"
+            class="flex items-center gap-3 p-4 mb-5 bg-red-50 text-red-700 rounded-xl text-sm font-medium"
+          >
+            <svg class="w-5 h-5 text-red-400 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+            </svg>
+            {{ errorMessage }}
+          </div>
+        </Transition>
+
         <form @submit.prevent="handleLogin" class="space-y-5">
-          <!-- Email -->
+          <!-- Usuário -->
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-1.5">E-mail</label>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">Usuário</label>
             <div class="relative">
               <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
                 <svg class="w-4.5 h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
               </span>
               <input
-                v-model="email"
-                type="email"
-                placeholder="seu@email.com"
+                v-model="username"
+                type="text"
+                id="login-username"
+                placeholder="seu.usuario"
                 required
                 class="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-400 focus:ring-3 focus:ring-indigo-100 transition-all text-sm"
               />
@@ -116,6 +160,7 @@ async function handleLogin() {
               <input
                 v-model="password"
                 :type="showPassword ? 'text' : 'password'"
+                id="login-password"
                 placeholder="••••••••"
                 required
                 class="w-full pl-10 pr-11 py-3 bg-white border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-400 focus:ring-3 focus:ring-indigo-100 transition-all text-sm"
@@ -136,24 +181,10 @@ async function handleLogin() {
             </div>
           </div>
 
-          <!-- Lembrar + Esqueceu -->
-          <div class="flex items-center justify-between">
-            <label class="flex items-center gap-2 cursor-pointer">
-              <input
-                v-model="rememberMe"
-                type="checkbox"
-                class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-400"
-              />
-              <span class="text-sm text-slate-600">Lembrar de mim</span>
-            </label>
-            <a href="#" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium transition-colors">
-              Esqueceu a senha?
-            </a>
-          </div>
-
           <!-- Botão entrar -->
           <button
             type="submit"
+            id="login-submit"
             :disabled="isLoading"
             class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-indigo-200 hover:shadow-indigo-300 hover:-translate-y-0.5 active:translate-y-0"
           >
@@ -164,13 +195,6 @@ async function handleLogin() {
             {{ isLoading ? 'Entrando...' : 'Entrar' }}
           </button>
         </form>
-
-        <p class="text-center text-sm text-slate-500 mt-6">
-          Não tem uma conta?
-          <router-link to="/cadastro" class="text-indigo-600 hover:text-indigo-700 font-semibold transition-colors">
-            Cadastre-se
-          </router-link>
-        </p>
       </div>
     </div>
   </div>

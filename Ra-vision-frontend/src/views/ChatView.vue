@@ -51,10 +51,14 @@ async function sendMessage(text?: string) {
   // Chama a IA real via Backend Java Proxy
   isTyping.value = true
   
+  const token = localStorage.getItem('token')
+
   try {
     const response = await axios.post('http://localhost:8080/api/chat', {
       message: content,
       dateRef: dateRef.value
+    }, {
+      headers: { Authorization: `Bearer ${token}` }
     })
 
     const aiText = response.data.response
@@ -93,8 +97,11 @@ function newChat() {
 }
 
 function logout() {
+  localStorage.clear()
   router.push('/')
 }
+
+const isAdmin = localStorage.getItem('role') === 'ADMINISTRADOR'
 
 function formatMarkdown(text: string) {
   return md.render(text)
@@ -155,6 +162,16 @@ function formatMarkdown(text: string) {
           <span class="hidden sm:inline">Regras</span>
         </button>
         <button
+          @click="router.push('/historico')"
+          class="flex items-center gap-2 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-semibold rounded-lg transition-colors border border-slate-200 shrink-0"
+          title="Histórico de Execuções"
+        >
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span class="hidden sm:inline">Histórico</span>
+        </button>
+        <button
           @click="router.push('/perfil')"
           class="flex items-center gap-2 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-semibold rounded-lg transition-colors border border-slate-200 shrink-0"
           title="Meu Perfil"
@@ -163,6 +180,17 @@ function formatMarkdown(text: string) {
             <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
           <span class="hidden sm:inline">Perfil</span>
+        </button>
+        <button
+          v-if="isAdmin"
+          @click="router.push('/cadastro')"
+          class="flex items-center gap-2 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-600 text-xs font-semibold rounded-lg transition-colors border border-purple-100 shrink-0"
+          title="Cadastrar Usuário"
+        >
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+          </svg>
+          <span class="hidden sm:inline">Cadastrar</span>
         </button>
       </div>
 
