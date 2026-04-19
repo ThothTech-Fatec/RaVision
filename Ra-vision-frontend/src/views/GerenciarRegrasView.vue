@@ -3,6 +3,15 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 
+// Interface de Simulação
+interface SimulacaoResponse {
+  regraId: number
+  custoTotalAtual: number
+  custoTotalSimulado: number
+  impactoFinanceiro: number
+  quantidadeFuncionariosAfetados: number
+}
+
 const router = useRouter()
 
 // Tipos
@@ -30,6 +39,12 @@ const editingId = ref<number | null>(null)
 const role = localStorage.getItem('role')
 const username = localStorage.getItem('username')
 const isGestor = role === 'GESTOR_RH'
+
+// Estado da Simulação
+const simulacaoModalOpen = ref(false)
+const simulacaoLoading = ref(false)
+const simulacaoData = ref<SimulacaoResponse | null>(null)
+const simulacaoRegraId = ref<number | null>(null)
 
 // Form
 const form = ref({
@@ -132,6 +147,60 @@ const recusarRegra = async (id: number) => {
     console.error("Erro ao recusar", error)
   }
 }
+
+// Simulação de Impacto
+const simularImpacto = async (id: number) => {
+  simulacaoRegraId.value = id
+  simulacaoLoading.value = true
+  simulacaoModalOpen.value = true
+  simulacaoData.value = null
+  try {
+    const res = await axios.get(`http://localhost:8080/api/calculos/simular/regra/${id}`, { headers: getHeaders() })
+    simulacaoData.value = res.data
+  } catch (error: any) {
+    console.error("Erro ao simular impacto:", error)
+    alert(error.response?.data?.message || 'Erro ao simular impacto financeiro.')
+    simulacaoModalOpen.value = false
+  } finally {
+    simulacaoLoading.value = false
+  }
+}
+
+const aprovarViaSimulacao = async () => {
+  if (simulacaoRegraId.value) {
+    await aprovarRegra(simulacaoRegraId.value)
+    simulacaoModalOpen.value = false
+  }
+}
+
+const recusarViaSimulacao = async () => {
+  if (simulacaoRegraId.value) {
+    await recusarRegra(simulacaoRegraId.value)
+    simulacaoModalOpen.value = false
+  }
+}
+
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
+}
+
+const impactColor = computed(() => {
+  if (!simulacaoData.value) return ''
+  return simulacaoData.value.impactoFinanceiro > 0
+    ? 'text-red-600'
+    : simulacaoData.value.impactoFinanceiro < 0
+      ? 'text-emerald-600'
+      : 'text-slate-600'
+})
+
+const impactBgColor = computed(() => {
+  if (!simulacaoData.value) return ''
+  return simulacaoData.value.impactoFinanceiro > 0
+    ? 'bg-red-50 border-red-200'
+    : simulacaoData.value.impactoFinanceiro < 0
+      ? 'bg-emerald-50 border-emerald-200'
+      : 'bg-slate-50 border-slate-200'
+})
 
 const formatTipo = (tipo: string) => {
   const map: Record<string, string> = {
@@ -250,14 +319,12 @@ function logout() {
                       </button>
                     </template>
                     
-                    <!-- Ações de Aprovação para GESTOR_RH -->
+                    <!-- Botão Simular Impacto para GESTOR_RH + PENDENTE -->
                     <template v-if="isGestor && regra.statusAprovacao === 'PENDENTE'">
                       <div class="w-px h-4 bg-slate-200 mx-1"></div>
-                      <button @click="aprovarRegra(regra.id)" class="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Aprovar Regra">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
-                      </button>
-                      <button @click="recusarRegra(regra.id)" class="p-1.5 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors" title="Recusar Regra">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                      <button @click="simularImpacto(regra.id)" class="flex items-center gap-1 px-2 py-1.5 text-violet-600 hover:bg-violet-50 rounded-lg transition-colors text-xs font-medium" title="Simular Impacto Financeiro">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                        <span class="hidden lg:inline">Simular</span>
                       </button>
                     </template>
                     
@@ -311,6 +378,70 @@ function logout() {
         <div class="px-6 py-4 border-t border-slate-100 flex justify-end gap-3 bg-slate-50">
           <button @click="modalOpen = false" class="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-sm">Cancelar</button>
           <button @click="saveRule" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm shadow-indigo-200">Salvar Regra</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de Simulação de Impacto -->
+    <div v-if="simulacaoModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 flex flex-col">
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-violet-50 to-indigo-50">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 bg-violet-100 rounded-lg flex items-center justify-center">
+              <svg class="w-4 h-4 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+            </div>
+            <h2 class="text-lg font-bold text-slate-800">Simulação de Impacto</h2>
+          </div>
+          <button @click="simulacaoModalOpen = false" class="text-slate-400 hover:text-slate-600 transition-colors p-1"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
+        </div>
+
+        <!-- Loading -->
+        <div v-if="simulacaoLoading" class="p-10 flex flex-col items-center gap-3">
+          <div class="w-8 h-8 border-3 border-violet-200 border-t-violet-600 rounded-full animate-spin"></div>
+          <p class="text-sm text-slate-500">Calculando impacto financeiro...</p>
+        </div>
+
+        <!-- Resultado -->
+        <div v-else-if="simulacaoData" class="p-6 space-y-4">
+          <!-- Cards de Custo -->
+          <div class="grid grid-cols-2 gap-3">
+            <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
+              <p class="text-xs text-slate-500 font-medium mb-1">Custo Atual</p>
+              <p class="text-lg font-bold text-slate-800">{{ formatCurrency(simulacaoData.custoTotalAtual) }}</p>
+            </div>
+            <div class="bg-indigo-50 rounded-xl p-4 border border-indigo-200">
+              <p class="text-xs text-indigo-500 font-medium mb-1">Novo Custo Projetado</p>
+              <p class="text-lg font-bold text-indigo-700">{{ formatCurrency(simulacaoData.custoTotalSimulado) }}</p>
+            </div>
+          </div>
+
+          <!-- Impacto Financeiro -->
+          <div :class="['rounded-xl p-4 border text-center', impactBgColor]">
+            <p class="text-xs font-medium mb-1" :class="impactColor">Impacto Financeiro</p>
+            <p class="text-2xl font-extrabold" :class="impactColor">
+              {{ simulacaoData.impactoFinanceiro > 0 ? '+' : '' }}{{ formatCurrency(simulacaoData.impactoFinanceiro) }}
+            </p>
+            <p class="text-xs mt-1" :class="impactColor">
+              {{ simulacaoData.impactoFinanceiro > 0 ? '▲ Aumento de custo' : simulacaoData.impactoFinanceiro < 0 ? '▼ Redução de custo' : '— Sem alteração' }}
+            </p>
+          </div>
+
+          <!-- Funcionários Afetados -->
+          <div class="flex items-center justify-center gap-2 py-2">
+            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            <span class="text-sm text-slate-600"><strong>{{ simulacaoData.quantidadeFuncionariosAfetados }}</strong> funcionário(s) afetado(s)</span>
+          </div>
+        </div>
+
+        <!-- Footer com Ações -->
+        <div v-if="simulacaoData && !simulacaoLoading" class="px-6 py-4 border-t border-slate-100 flex justify-between gap-3 bg-slate-50">
+          <button @click="recusarViaSimulacao" class="flex-1 px-4 py-2.5 text-sm font-semibold text-red-600 bg-white border border-red-200 rounded-xl hover:bg-red-50 transition-colors shadow-sm">
+            ✕ Recusar Regra
+          </button>
+          <button @click="aprovarViaSimulacao" class="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 transition-colors shadow-sm shadow-emerald-200">
+            ✓ Aprovar Regra
+          </button>
         </div>
       </div>
     </div>

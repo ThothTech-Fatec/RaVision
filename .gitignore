@@ -53,3 +53,6 @@ build/
 .env
 .env.*
 !.env.example
+testlist.txt
+filelist.txt
+prompt.txt
