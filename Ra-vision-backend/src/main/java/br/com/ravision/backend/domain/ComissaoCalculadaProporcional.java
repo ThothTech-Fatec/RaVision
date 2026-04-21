@@ -23,6 +23,9 @@ public class ComissaoCalculadaProporcional {
     @Column(name = "matricula", nullable = false)
     private String matricula;
 
+    @Column(name = "cod_loja")
+    private Integer codLoja;
+
     @Column(name = "dias_do_mes", nullable = false)
     private Integer diasDoMes;
 

@@ -24,4 +24,7 @@ public class IntercorrenciaRH {
 
     @Column(name = "data_fim", nullable = false)
     private LocalDate dataFim;
+
+    @Column(name = "cod_loja_secundaria")
+    private Integer codLojaSecundaria;
 }
