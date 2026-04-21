@@ -3,10 +3,12 @@ package br.com.ravision.backend.service;
 import br.com.ravision.backend.domain.BaseRH;
 import br.com.ravision.backend.domain.ComissaoCalculadaBase;
 import br.com.ravision.backend.domain.ComissaoCalculadaProporcional;
+import br.com.ravision.backend.domain.IntercorrenciaRH;
 import br.com.ravision.backend.repository.BaseRHRepository;
 import br.com.ravision.backend.repository.ComissaoCalculadaBaseRepository;
 import br.com.ravision.backend.repository.ComissaoCalculadaProporcionalRepository;
 import br.com.ravision.backend.repository.IntercorrenciaRHRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -34,68 +36,193 @@ public class CalculoProporcionalServiceTest {
     @InjectMocks
     private CalculoProporcionalService service;
 
-    @Test
-    void garanteMatematicaDeProporcionalidade() {
-        LocalDate dateRefOutubro = LocalDate.of(2025, 10, 1);
-        LocalDate dateRefNovembro = LocalDate.of(2025, 11, 1);
+    private LocalDate dateRef;
+    private BaseRH rh;
+    private ComissaoCalculadaBase base;
 
-        // --- Cenario Admissao ---
-        // Vendedor Admitido em 10/10/2025 -> Trabalhou 31 - 10 = 21 dias 
-        BaseRH rhAdmitido = new BaseRH();
-        rhAdmitido.setMatricula("V_ADM");
-        rhAdmitido.setDataAdmissao(LocalDate.of(2025, 10, 10));
-
-        ComissaoCalculadaBase comissaoAdmitido = new ComissaoCalculadaBase();
-        comissaoAdmitido.setId(1L);
-        comissaoAdmitido.setMatricula("V_ADM");
-        comissaoAdmitido.setValorComissaoGerado(new BigDecimal("1000.00")); // 1000 / 31 * 21 = 677.42
-
-        // --- Execucao Outubro ---
-        when(baseRepository.findByDateRef(dateRefOutubro)).thenReturn(Collections.singletonList(comissaoAdmitido));
-        when(rhRepository.findByDateRef(dateRefOutubro)).thenReturn(Collections.singletonList(rhAdmitido));
-        when(intercorrenciaRepository.findAll()).thenReturn(Collections.emptyList());
-
-        service.calcularProporcional(dateRefOutubro);
-
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<List<ComissaoCalculadaProporcional>> captorOut = ArgumentCaptor.forClass(List.class);
-        verify(proporcionalRepository).saveAll(captorOut.capture());
-
-        ComissaoCalculadaProporcional propAdm = captorOut.getValue().get(0);
-        assertEquals("ADMISSAO", propAdm.getMotivoProporcionalidade());
-        assertEquals(31, propAdm.getDiasDoMes());
-        assertEquals(21, propAdm.getDiasTrabalhados());
-        assertEquals(0, new BigDecimal("677.42").compareTo(propProp_Comparativo(propAdm)));
-
-        // --- Cenario Demissao ---
-        // Vendedor Demitido em 10/11/2025 -> Trabalhou 10 dias do total de 30
-        BaseRH rhDemitido = new BaseRH();
-        rhDemitido.setMatricula("V_DEM");
-        rhDemitido.setDataDemissao(LocalDate.of(2025, 11, 10));
-
-        ComissaoCalculadaBase comissaoDemitido = new ComissaoCalculadaBase();
-        comissaoDemitido.setId(2L);
-        comissaoDemitido.setMatricula("V_DEM");
-        comissaoDemitido.setValorComissaoGerado(new BigDecimal("3000.00")); // 3000 / 30 * 10 = 1000.00
-
-        // --- Execucao Novembro ---
-        when(baseRepository.findByDateRef(dateRefNovembro)).thenReturn(Collections.singletonList(comissaoDemitido));
-        when(rhRepository.findByDateRef(dateRefNovembro)).thenReturn(Collections.singletonList(rhDemitido));
-
-        service.calcularProporcional(dateRefNovembro);
-
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<List<ComissaoCalculadaProporcional>> captorNov = ArgumentCaptor.forClass(List.class);
-        verify(proporcionalRepository).saveAll(captorNov.capture()); // O captor pega ambas chamadas
-
-        ComissaoCalculadaProporcional propDem = captorNov.getAllValues().get(1).get(0); 
-
-        assertEquals("DEMISSAO", propDem.getMotivoProporcionalidade());
-        assertEquals(30, propDem.getDiasDoMes());
-        assertEquals(10, propDem.getDiasTrabalhados());
-        assertEquals(0, new BigDecimal("1000.00").compareTo(propDem.getValorComissaoProporcional()));
+    @BeforeEach
+    void setUp() {
+        dateRef = LocalDate.of(2025, 11, 1); // Novembro tem 30 dias
+        
+        rh = new BaseRH();
+        rh.setMatricula("MAT-123");
+        
+        base = new ComissaoCalculadaBase();
+        base.setId(1L);
+        base.setMatricula("MAT-123");
+        base.setCodLoja(10); // Loja Principal
+        base.setValorBaseVendas(new BigDecimal("100000.00"));
+        base.setPercentualAplicado(new BigDecimal("0.05"));
+        base.setValorComissaoGerado(new BigDecimal("2000.00"));
     }
-    
-    // Auxiliar apenas pra Mockito assertion bypass com BigDecimal
-    public BigDecimal propProp_Comparativo(ComissaoCalculadaProporcional cp) { return cp.getValorComissaoProporcional();}
+
+    @Test
+    void deveCalcularAfastamentoMenorQue15DiasPagandoProporcional() {
+        // Afastamento 10 dias -> Trabalhou 20
+        // Media Diaria Vendas: 100k / 20 = 5000
+        // Base Adicional: 5000 * 10 = 50000
+        // Comissao Adicional: 50000 * 5% = 2500
+        // Total Comissao = 2000 (real) + 2500 = 4500
+        // Como 4500 > 3500 (Piso), paga 4500.
+
+        IntercorrenciaRH atestado = new IntercorrenciaRH();
+        atestado.setMatricula("MAT-123");
+        atestado.setTipo("ATESTADO");
+        atestado.setDataInicio(LocalDate.of(2025, 11, 1));
+        atestado.setDataFim(LocalDate.of(2025, 11, 10)); // 10 dias
+
+        when(baseRepository.findByDateRef(dateRef)).thenReturn(Collections.singletonList(base));
+        when(rhRepository.findByDateRef(dateRef)).thenReturn(Collections.singletonList(rh));
+        when(intercorrenciaRepository.findAll()).thenReturn(Collections.singletonList(atestado));
+
+        service.calcularProporcional(dateRef);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ComissaoCalculadaProporcional>> captor = ArgumentCaptor.forClass(List.class);
+        verify(proporcionalRepository).saveAll(captor.capture());
+
+        ComissaoCalculadaProporcional result = captor.getValue().get(0);
+        
+        assertEquals("AFASTAMENTO", result.getMotivoProporcionalidade());
+        assertEquals(20, result.getDiasTrabalhados());
+        assertEquals(0, new BigDecimal("4500.00").compareTo(result.getValorComissaoProporcional()));
+    }
+
+    @Test
+    void deveCalcularAfastamentoMenorQue15DiasGarantindoPiso3500() {
+        // Ajustando base para forcar o valor a ficar abaixo do piso
+        base.setValorBaseVendas(new BigDecimal("40000.00"));
+        base.setValorComissaoGerado(new BigDecimal("800.00"));
+        
+        // Afastamento 10 dias -> Trabalhou 20
+        // Media Diaria Vendas: 40k / 20 = 2000
+        // Base Adicional: 2000 * 10 = 20000
+        // Comissao Adicional: 20000 * 5% = 1000
+        // Total Comissao = 800 (real) + 1000 = 1800
+        // Como 1800 < 3500 (Piso), DEVE PAGAR 3500.
+
+        IntercorrenciaRH atestado = new IntercorrenciaRH();
+        atestado.setMatricula("MAT-123");
+        atestado.setTipo("ATESTADO");
+        atestado.setDataInicio(LocalDate.of(2025, 11, 1));
+        atestado.setDataFim(LocalDate.of(2025, 11, 10)); // 10 dias
+
+        when(baseRepository.findByDateRef(dateRef)).thenReturn(Collections.singletonList(base));
+        when(rhRepository.findByDateRef(dateRef)).thenReturn(Collections.singletonList(rh));
+        when(intercorrenciaRepository.findAll()).thenReturn(Collections.singletonList(atestado));
+
+        service.calcularProporcional(dateRef);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ComissaoCalculadaProporcional>> captor = ArgumentCaptor.forClass(List.class);
+        verify(proporcionalRepository).saveAll(captor.capture());
+
+        ComissaoCalculadaProporcional result = captor.getValue().get(0);
+        
+        assertEquals("AFASTAMENTO", result.getMotivoProporcionalidade());
+        assertEquals(20, result.getDiasTrabalhados());
+        assertEquals(0, new BigDecimal("3500.00").compareTo(result.getValorComissaoProporcional()));
+    }
+
+    @Test
+    void deveCalcularAfastamentoMaiorQue15DiasLimitandoPagamento() {
+        // Afastamento 20 dias -> Trabalhou 10
+        // Media Diaria Vendas: 100k / 10 = 10000
+        // Base Adicional Limitada (Empresa so paga 15): 10000 * 15 = 150000
+        // Comissao Adicional: 150000 * 5% = 7500
+        // Total Comissao = 2000 (real) + 7500 = 9500
+
+        IntercorrenciaRH atestado = new IntercorrenciaRH();
+        atestado.setMatricula("MAT-123");
+        atestado.setTipo("ATESTADO");
+        atestado.setDataInicio(LocalDate.of(2025, 11, 1));
+        atestado.setDataFim(LocalDate.of(2025, 11, 20)); // 20 dias
+
+        when(baseRepository.findByDateRef(dateRef)).thenReturn(Collections.singletonList(base));
+        when(rhRepository.findByDateRef(dateRef)).thenReturn(Collections.singletonList(rh));
+        when(intercorrenciaRepository.findAll()).thenReturn(Collections.singletonList(atestado));
+
+        service.calcularProporcional(dateRef);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ComissaoCalculadaProporcional>> captor = ArgumentCaptor.forClass(List.class);
+        verify(proporcionalRepository).saveAll(captor.capture());
+
+        ComissaoCalculadaProporcional result = captor.getValue().get(0);
+        
+        assertEquals("AFASTAMENTO", result.getMotivoProporcionalidade());
+        assertEquals(10, result.getDiasTrabalhados());
+        assertEquals(0, new BigDecimal("9500.00").compareTo(result.getValorComissaoProporcional()));
+    }
+
+    @Test
+    void deveDividirComissaoParaFuncionarioDeMultiplasLojas() {
+        // Funcionario transferido, passou 10 dias na LOJA-55
+        // Total comissao: 3000
+        // Loja Secundaria (10 dias): 3000 * (10/30) = 1000
+        // Loja Principal (20 dias): 3000 * (20/30) = 2000
+        base.setValorComissaoGerado(new BigDecimal("3000.00"));
+
+        IntercorrenciaRH transferencia = new IntercorrenciaRH();
+        transferencia.setMatricula("MAT-123");
+        transferencia.setTipo("TRANSFERENCIA");
+        transferencia.setDataInicio(LocalDate.of(2025, 11, 1));
+        transferencia.setDataFim(LocalDate.of(2025, 11, 10)); // 10 dias
+        transferencia.setCodLojaSecundaria(55);
+
+        when(baseRepository.findByDateRef(dateRef)).thenReturn(Collections.singletonList(base));
+        when(rhRepository.findByDateRef(dateRef)).thenReturn(Collections.singletonList(rh));
+        when(intercorrenciaRepository.findAll()).thenReturn(Collections.singletonList(transferencia));
+
+        service.calcularProporcional(dateRef);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ComissaoCalculadaProporcional>> captor = ArgumentCaptor.forClass(List.class);
+        verify(proporcionalRepository).saveAll(captor.capture());
+
+        List<ComissaoCalculadaProporcional> results = captor.getValue();
+        assertEquals(2, results.size());
+
+        // Loja Principal
+        ComissaoCalculadaProporcional lojaPrincipal = results.get(0);
+        assertEquals("RATEIO_LOJA_PRINCIPAL", lojaPrincipal.getMotivoProporcionalidade());
+        assertEquals(10, lojaPrincipal.getCodLoja());
+        assertEquals(20, lojaPrincipal.getDiasTrabalhados());
+        assertEquals(0, new BigDecimal("2000.00").compareTo(lojaPrincipal.getValorComissaoProporcional()));
+
+        // Loja Secundaria
+        ComissaoCalculadaProporcional lojaSec = results.get(1);
+        assertEquals("RATEIO_LOJA_SECUNDARIA", lojaSec.getMotivoProporcionalidade());
+        assertEquals(55, lojaSec.getCodLoja());
+        assertEquals(10, lojaSec.getDiasTrabalhados());
+        assertEquals(0, new BigDecimal("1000.00").compareTo(lojaSec.getValorComissaoProporcional()));
+    }
+
+    @Test
+    void deveGarantirIsencaoDePerdasParaLicencaMaternidade() {
+        // Licenca maternidade garante isencao total (dias trabalhados = integral e comissao = original)
+        base.setValorComissaoGerado(new BigDecimal("5000.00"));
+
+        IntercorrenciaRH maternidade = new IntercorrenciaRH();
+        maternidade.setMatricula("MAT-123");
+        maternidade.setTipo("LICENCA_MATERNIDADE");
+        maternidade.setDataInicio(LocalDate.of(2025, 11, 5));
+        maternidade.setDataFim(LocalDate.of(2025, 11, 25));
+
+        when(baseRepository.findByDateRef(dateRef)).thenReturn(Collections.singletonList(base));
+        when(rhRepository.findByDateRef(dateRef)).thenReturn(Collections.singletonList(rh));
+        when(intercorrenciaRepository.findAll()).thenReturn(Collections.singletonList(maternidade));
+
+        service.calcularProporcional(dateRef);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ComissaoCalculadaProporcional>> captor = ArgumentCaptor.forClass(List.class);
+        verify(proporcionalRepository).saveAll(captor.capture());
+
+        ComissaoCalculadaProporcional result = captor.getValue().get(0);
+        
+        assertEquals("LICENCA_MATERNIDADE", result.getMotivoProporcionalidade());
+        assertEquals(30, result.getDiasTrabalhados());
+        assertEquals(0, new BigDecimal("5000.00").compareTo(result.getValorComissaoProporcional()));
+    }
 }
