@@ -16,6 +16,13 @@ const statusMessage = ref<{ type: 'success' | 'error' | null; text: string }>({
   text: '',
 })
 
+const dateRef = ref('')
+const isProcessing = ref(false)
+const processMessage = ref<{ type: 'success' | 'error' | null; text: string }>({
+  type: null,
+  text: '',
+})
+
 function handleFileChange(event: Event, type: 'rh' | 'vendas' | 'comissao') {
   const target = event.target as HTMLInputElement
   if (target.files && target.files.length > 0) {
@@ -69,6 +76,44 @@ async function uploadFiles() {
     }
   } finally {
     isUploading.value = false
+  }
+}
+
+async function processarFolha() {
+  if (!dateRef.value) {
+    processMessage.value = {
+      type: 'error',
+      text: 'Por favor, selecione o mês de competência antes de processar.',
+    }
+    return
+  }
+
+  isProcessing.value = true
+  processMessage.value = { type: null, text: '' }
+
+  const token = localStorage.getItem('token')
+  const formattedDate = `${dateRef.value}-01` // Ex: 2025-08-01
+
+  try {
+    const response = await fetch(`http://localhost:8080/api/calculos/processar-folha?dateRef=${formattedDate}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    const result = await response.text()
+
+    if (response.ok) {
+      processMessage.value = { type: 'success', text: result || 'Processamento concluído com sucesso!' }
+    } else {
+      processMessage.value = { type: 'error', text: result || 'Falha ao processar a folha.' }
+    }
+  } catch (error: any) {
+    processMessage.value = {
+      type: 'error',
+      text: 'Erro ao conectar-se com o servidor. Verifique se o Back-end está rodando.',
+    }
+  } finally {
+    isProcessing.value = false
   }
 }
 
@@ -220,6 +265,68 @@ function logout() {
 
           </form>
         </div>
+      </div>
+      
+      <!-- Nova Área: Processamento de Folha -->
+      <div class="w-full max-w-2xl bg-white rounded-3xl shadow-xs border border-slate-200 p-8 mt-6 mb-8">
+          <div class="flex flex-col items-center justify-center text-center mb-6">
+            <div class="w-16 h-16 bg-linear-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-xl shadow-green-200 mb-5">
+              <svg class="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-2">Fechamento de Folha</h2>
+            <p class="text-slate-500 text-sm max-w-md leading-relaxed">
+              Após importar as planilhas e cadastrar as regras, selecione o mês e rode o motor para gerar a comissão final (Base + Proporcional + Sazonal).
+            </p>
+          </div>
+
+          <div class="space-y-6">
+            <!-- Mês de Competência -->
+            <div>
+              <label class="block text-sm font-semibold text-slate-700 mb-2">Mês de Competência</label>
+              <input
+                type="month"
+                v-model="dateRef"
+                class="block w-full text-sm text-slate-700 p-3 rounded-xl border border-slate-200 shadow-xs focus:ring-2 focus:ring-green-500/50 focus:border-green-500 transition-all outline-none"
+              />
+            </div>
+
+            <!-- Feedback Processamento -->
+            <div
+              v-if="processMessage.type"
+              :class="[
+                'p-4 rounded-xl text-sm flex gap-3',
+                processMessage.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+              ]"
+            >
+              <div v-if="processMessage.type === 'success'" class="hidden sm:block">
+                <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+                </svg>
+              </div>
+              <div v-else class="hidden sm:block">
+                <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+                </svg>
+              </div>
+              <div class="flex-1 font-medium whitespace-pre-wrap">{{ processMessage.text }}</div>
+            </div>
+
+            <!-- Botão de Processamento -->
+            <button
+              @click="processarFolha"
+              :disabled="isProcessing || !dateRef"
+              class="w-full flex justify-center items-center py-3.5 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-green-600 hover:bg-green-700 hover:-translate-y-0.5 active:translate-y-0 disabled:bg-slate-300 disabled:-translate-y-0 disabled:cursor-not-allowed transition-all"
+            >
+              <svg v-if="isProcessing" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span v-if="!isProcessing">Rodar Processamento Completo da Folha</span>
+              <span v-else>Processando...</span>
+            </button>
+          </div>
       </div>
       
     </div><!-- fim área principal -->

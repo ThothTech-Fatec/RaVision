@@ -4,5 +4,6 @@ public enum TipoRegra {
     OVERRIDE_PERCENTUAL,
     BONUS_FIXO,
     FAIXA_VENDAS,
-    BLACK_FRIDAY
+    BLACK_FRIDAY,
+    BONUS_BASE
 }

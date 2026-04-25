@@ -1,6 +1,6 @@
 package br.com.ravision.backend.controller;
 
-import br.com.ravision.backend.dto.SimulacaoResponseDTO;
+
 import br.com.ravision.backend.service.CalculoComissaoService;
 import br.com.ravision.backend.service.SimulacaoService;
 import lombok.RequiredArgsConstructor;
