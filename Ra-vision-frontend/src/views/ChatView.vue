@@ -29,7 +29,15 @@ const suggestions = [
   'Qual a comissão do MATRIC-102?',
   'Explique o cálculo do MATRIC-110',
   'Quem é o gerente da LOJA-10?',
-  'Por que o bônus da Black Friday foi aplicado?',
+  'Quero criar uma regra de negócio',
+]
+
+const quickReplies = [
+  { emoji: '🪄', label: 'Criar Bônus Fixo para um Vendedor' },
+  { emoji: '📈', label: 'Configurar Campanha de Black Friday' },
+  { emoji: '🎯', label: 'Criar Bônus de Faixa de Vendas' },
+  { emoji: '🔄', label: 'Criar Override de Percentual' },
+  { emoji: '📊', label: 'Criar Bônus na Base de Cálculo' },
 ]
 
 function getTime() {
@@ -300,6 +308,18 @@ function formatMarkdown(text: string) {
     <!-- Input de mensagem -->
     <div class="shrink-0 px-4 py-3 bg-white border-t border-slate-200">
       <div class="max-w-3xl mx-auto">
+        <!-- Quick Reply Pills -->
+        <div v-if="!isTyping" class="flex flex-wrap gap-1.5 mb-2.5">
+          <button
+            v-for="qr in quickReplies"
+            :key="qr.label"
+            @click="sendMessage(qr.emoji + ' ' + qr.label)"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 rounded-full text-xs text-slate-600 hover:text-indigo-700 transition-all duration-150 shadow-xs hover:shadow-sm cursor-pointer"
+          >
+            <span>{{ qr.emoji }}</span>
+            <span class="font-medium">{{ qr.label }}</span>
+          </button>
+        </div>
         <div class="flex items-end gap-2 bg-slate-100 rounded-2xl px-4 py-2.5 shadow-inner">
           <textarea
             v-model="newMessage"
