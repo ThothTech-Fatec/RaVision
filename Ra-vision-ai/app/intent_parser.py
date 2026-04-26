@@ -60,7 +60,11 @@ def parse_intent(message: str, date_ref: str | None = None) -> UserIntent:
         intent.tipo_consulta = "comissao"
     elif any(w in msg_lower for w in ['detalh', 'expliq', 'como', 'por que', 'porque', 'passo']):
         intent.tipo_consulta = "detalhamento"
-    elif any(w in msg_lower for w in ['criar regra', 'crie um', 'cria um', 'adicionar regra', 'nova regra', 'bônus', 'bonus']):
+    elif any(w in msg_lower for w in ['criar regra', 'crie um', 'cria um', 'adicionar regra', 'nova regra',
+                                          'bônus fixo', 'bonus fixo', 'bônus', 'bonus',
+                                          'black friday', 'faixa de vendas', 'override',
+                                          'configurar campanha', 'criar bônus', 'criar bonus',
+                                          'quero criar']):
         intent.tipo_consulta = "criar_regra"
     elif any(w in msg_lower for w in ['loja', 'equipe', 'time', 'todos']):
         intent.tipo_consulta = "loja"
