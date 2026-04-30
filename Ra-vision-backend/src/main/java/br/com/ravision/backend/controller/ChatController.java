@@ -15,7 +15,7 @@ public class ChatController {
     private ChatProxyService chatProxyService;
 
     @PostMapping
-    public ChatResponse processChat(@RequestBody ChatRequest request) {
-        return chatProxyService.getAiResponse(request);
+    public ChatResponse processChat(@RequestBody ChatRequest request, @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        return chatProxyService.getAiResponse(request, authHeader);
     }
 }
