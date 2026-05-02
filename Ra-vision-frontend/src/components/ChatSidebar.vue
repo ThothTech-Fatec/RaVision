@@ -1,34 +1,132 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import type { ChatSession } from '../views/ChatView.vue'
 
 const router = useRouter()
 
-defineProps<{ open: boolean }>()
-const emit = defineEmits<{ toggle: []; 'new-chat': [] }>()
+const props = withDefaults(defineProps<{ 
+  open: boolean, 
+  conversations?: ChatSession[],
+  activeId?: number | null
+}>(), {
+  conversations: () => [],
+  activeId: null
+})
 
-interface Conversation {
-  id: number
-  title: string
-  time: string
-  group: 'hoje' | 'ontem' | 'anterior'
+const emit = defineEmits<{ 
+  toggle: []; 
+  'new-chat': [];
+  'select-chat': [id: number];
+  'delete-chat': [id: number];
+}>()
+
+const storageKey = computed(() => {
+  const username = localStorage.getItem('username') || 'default'
+  return `ra_vision_chats_${username}`
+})
+
+const localConversations = ref<ChatSession[]>([])
+
+onMounted(() => {
+  if (props.conversations.length === 0) {
+    const saved = localStorage.getItem(storageKey.value)
+    if (saved) {
+      try {
+        localConversations.value = JSON.parse(saved)
+      } catch (e) {}
+    }
+  }
+})
+
+const displayConversations = computed(() => {
+  return props.conversations.length > 0 ? props.conversations : localConversations.value
+})
+
+function formatTime(timestamp: number) {
+  const date = new Date(timestamp)
+  return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
 }
 
-const activeId = ref(1)
+function formatDateOrTime(timestamp: number) {
+  const date = new Date(timestamp)
+  const now = new Date()
+  
+  const isToday = date.getDate() === now.getDate() && 
+                  date.getMonth() === now.getMonth() && 
+                  date.getFullYear() === now.getFullYear()
+                  
+  const yesterday = new Date(now)
+  yesterday.setDate(now.getDate() - 1)
+  const isYesterday = date.getDate() === yesterday.getDate() && 
+                      date.getMonth() === yesterday.getMonth() && 
+                      date.getFullYear() === yesterday.getFullYear()
 
-const conversations: Conversation[] = [
-  { id: 1, title: 'Análise de risco da operação', time: '14:32', group: 'hoje' },
-  { id: 2, title: 'Regras de aprovação de crédito', time: '11:20', group: 'hoje' },
-  { id: 3, title: 'Decisão sobre fornecedor X', time: 'Ontem', group: 'ontem' },
-  { id: 4, title: 'Critérios de conformidade', time: 'Ontem', group: 'ontem' },
-  { id: 5, title: 'Revisão de processo interno', time: '20/03', group: 'anterior' },
-  { id: 6, title: 'Auditoria de fluxo financeiro', time: '19/03', group: 'anterior' },
-]
+  if (isToday) return formatTime(timestamp)
+  if (isYesterday) return 'Ontem'
+  return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`
+}
 
-const byGroup = (group: Conversation['group']) => conversations.filter((c) => c.group === group)
+function getGroup(timestamp: number) {
+  const date = new Date(timestamp)
+  const now = new Date()
+  
+  const isToday = date.getDate() === now.getDate() && 
+                  date.getMonth() === now.getMonth() && 
+                  date.getFullYear() === now.getFullYear()
+                  
+  const yesterday = new Date(now)
+  yesterday.setDate(now.getDate() - 1)
+  const isYesterday = date.getDate() === yesterday.getDate() && 
+                      date.getMonth() === yesterday.getMonth() && 
+                      date.getFullYear() === yesterday.getFullYear()
+
+  if (isToday) return 'hoje'
+  if (isYesterday) return 'ontem'
+  return 'anterior'
+}
+
+const groupedConversations = computed(() => {
+  return displayConversations.value.map(c => ({
+    ...c,
+    timeLabel: formatDateOrTime(c.updatedAt),
+    group: getGroup(c.updatedAt)
+  }))
+})
+
+const byGroup = (group: 'hoje' | 'ontem' | 'anterior') => 
+  groupedConversations.value.filter(c => c.group === group)
 
 function selectChat(id: number) {
-  activeId.value = id
+  emit('select-chat', id)
+  if (router.currentRoute.value.path !== '/chat') {
+    localStorage.setItem('ra_vision_active_chat', String(id))
+    router.push('/chat')
+  }
+}
+
+function handleNewChat() {
+  emit('new-chat')
+  if (router.currentRoute.value.path !== '/chat') {
+    router.push('/chat')
+  }
+}
+
+function handleDeleteChat(id: number) {
+  if (router.currentRoute.value.path === '/chat') {
+    // Delegar para o ChatView se estivermos na tela de Chat
+    emit('delete-chat', id)
+  } else {
+    // Gerenciar de forma autônoma nas outras telas
+    if (window.confirm('Tem certeza que deseja excluir esta conversa? Essa ação não pode ser desfeita.')) {
+      localConversations.value = localConversations.value.filter(c => c.id !== id)
+      localStorage.setItem(storageKey.value, JSON.stringify(localConversations.value))
+      
+      if (localStorage.getItem('ra_vision_active_chat') === String(id)) {
+        localStorage.removeItem('ra_vision_active_chat')
+      }
+    }
+  }
 }
 </script>
 
@@ -91,7 +189,7 @@ function selectChat(id: number) {
     <!-- Nova conversa -->
     <div :class="['py-3 shrink-0 space-y-2', open ? 'px-3' : 'px-2']">
       <button
-        @click="emit('new-chat')"
+        @click="handleNewChat"
         :class="[
           'w-full flex items-center gap-2.5 rounded-xl transition-colors text-sm font-medium',
           'bg-indigo-50 hover:bg-indigo-100 text-indigo-600',
@@ -131,14 +229,24 @@ function selectChat(id: number) {
           :key="conv.id"
           @click="selectChat(conv.id)"
           :class="[
-            'w-full flex flex-col items-start px-3 py-2.5 rounded-xl text-left transition-colors mb-0.5',
+            'w-full flex flex-col items-start px-3 py-2.5 rounded-xl text-left transition-colors mb-0.5 relative group',
             activeId === conv.id
               ? 'bg-indigo-50 text-indigo-700'
               : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800',
           ]"
         >
-          <span class="text-sm font-medium truncate w-full">{{ conv.title }}</span>
-          <span class="text-xs text-slate-400 mt-0.5">{{ conv.time }}</span>
+          <span class="text-sm font-medium truncate w-full pr-7">{{ conv.title }}</span>
+          <span class="text-xs text-slate-400 mt-0.5">{{ conv.timeLabel }}</span>
+
+          <div 
+            @click.stop="handleDeleteChat(conv.id)"
+            class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+            title="Excluir chat"
+          >
+             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+             </svg>
+          </div>
         </button>
       </template>
 
@@ -150,14 +258,24 @@ function selectChat(id: number) {
           :key="conv.id"
           @click="selectChat(conv.id)"
           :class="[
-            'w-full flex flex-col items-start px-3 py-2.5 rounded-xl text-left transition-colors mb-0.5',
+            'w-full flex flex-col items-start px-3 py-2.5 rounded-xl text-left transition-colors mb-0.5 relative group',
             activeId === conv.id
               ? 'bg-indigo-50 text-indigo-700'
               : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800',
           ]"
         >
-          <span class="text-sm font-medium truncate w-full">{{ conv.title }}</span>
-          <span class="text-xs text-slate-400 mt-0.5">{{ conv.time }}</span>
+          <span class="text-sm font-medium truncate w-full pr-7">{{ conv.title }}</span>
+          <span class="text-xs text-slate-400 mt-0.5">{{ conv.timeLabel }}</span>
+
+          <div 
+            @click.stop="handleDeleteChat(conv.id)"
+            class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+            title="Excluir chat"
+          >
+             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+             </svg>
+          </div>
         </button>
       </template>
 
@@ -169,14 +287,24 @@ function selectChat(id: number) {
           :key="conv.id"
           @click="selectChat(conv.id)"
           :class="[
-            'w-full flex flex-col items-start px-3 py-2.5 rounded-xl text-left transition-colors mb-0.5',
+            'w-full flex flex-col items-start px-3 py-2.5 rounded-xl text-left transition-colors mb-0.5 relative group',
             activeId === conv.id
               ? 'bg-indigo-50 text-indigo-700'
               : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800',
           ]"
         >
-          <span class="text-sm font-medium truncate w-full">{{ conv.title }}</span>
-          <span class="text-xs text-slate-400 mt-0.5">{{ conv.time }}</span>
+          <span class="text-sm font-medium truncate w-full pr-7">{{ conv.title }}</span>
+          <span class="text-xs text-slate-400 mt-0.5">{{ conv.timeLabel }}</span>
+
+          <div 
+            @click.stop="handleDeleteChat(conv.id)"
+            class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+            title="Excluir chat"
+          >
+             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+             </svg>
+          </div>
         </button>
       </template>
     </div>
@@ -184,7 +312,7 @@ function selectChat(id: number) {
     <!-- Ícones de conversas (collapsed) -->
     <div v-else class="flex-1 flex flex-col items-center py-1 gap-0.5 overflow-hidden">
       <button
-        v-for="conv in conversations.slice(0, 6)"
+        v-for="conv in displayConversations.slice(0, 6)"
         :key="conv.id"
         @click="selectChat(conv.id)"
         :class="[

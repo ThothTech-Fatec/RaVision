@@ -122,7 +122,9 @@ function newChat() {
 }
 
 function logout() {
-  localStorage.clear()
+  localStorage.removeItem('token')
+  localStorage.removeItem('role')
+  localStorage.removeItem('username')
   router.push('/')
 }
 </script>
@@ -168,8 +170,8 @@ function logout() {
       </header>
 
       <!-- Área de Importação (Formulário) -->
-      <div class="flex-1 overflow-y-auto flex flex-col items-center justify-start p-6">
-        <div class="w-full max-w-2xl bg-white rounded-3xl shadow-xs border border-slate-200 p-8 mt-4">
+      <div class="flex-1 overflow-y-auto flex flex-col xl:flex-row items-start justify-center gap-8 p-6">
+        <div class="w-full xl:w-1/2 max-w-2xl bg-white rounded-3xl shadow-xs border border-slate-200 p-8">
           
           <div class="flex flex-col items-center justify-center text-center mb-8">
             <div class="w-16 h-16 bg-linear-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-xl shadow-indigo-200 mb-5">
@@ -265,10 +267,9 @@ function logout() {
 
           </form>
         </div>
-      </div>
       
       <!-- Nova Área: Processamento de Folha -->
-      <div class="w-full max-w-2xl bg-white rounded-3xl shadow-xs border border-slate-200 p-8 mt-6 mb-8">
+      <div class="w-full xl:w-1/2 max-w-2xl bg-white rounded-3xl shadow-xs border border-slate-200 p-8">
           <div class="flex flex-col items-center justify-center text-center mb-6">
             <div class="w-16 h-16 bg-linear-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-xl shadow-green-200 mb-5">
               <svg class="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
@@ -327,6 +328,7 @@ function logout() {
               <span v-else>Processando...</span>
             </button>
           </div>
+      </div>
       </div>
       
     </div><!-- fim área principal -->
