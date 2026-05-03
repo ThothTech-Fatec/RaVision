@@ -52,4 +52,17 @@ public class HistoricoService {
                 ))
                 .collect(Collectors.toList());
     }
+
+    public void excluirPorId(Long id) {
+        if (!historicoRepository.existsById(id)) {
+            throw new RuntimeException("Registro de histórico não encontrado: " + id);
+        }
+        historicoRepository.deleteById(id);
+        log.info("Registro de histórico ID {} excluído.", id);
+    }
+
+    public void limparTodos() {
+        historicoRepository.deleteAll();
+        log.info("Todo o histórico foi limpo.");
+    }
 }

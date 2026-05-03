@@ -86,6 +86,108 @@ def buscar_vendas_loja(cod_loja: int, date_ref: str) -> float:
         return float(row["total"]) if row else 0.0
 
 
+def buscar_jornada_comissao(matricula: str, date_ref: str) -> dict:
+    """
+    Busca a jornada completa de cálculo de comissão de um funcionário,
+    unindo as 3 tabelas de processamento sequencial via LEFT JOIN.
+
+    Retorna um dicionário estruturado com:
+      - etapa_base        : dados da comissão bruta inicial
+      - etapa_proporcional: dados do ajuste trabalhista (pode ser None)
+      - etapa_final       : dados dos bônus sazonais e valor definitivo (pode ser None)
+      - status_processamento: string descritiva do estágio atual do cálculo
+    """
+    with get_session() as session:
+        result = session.execute(
+            text("""
+                SELECT
+                    -- ── Etapa 1: Base ──────────────────────────────────────────
+                    b.valor_base_vendas          AS base_valor_total_vendas,
+                    b.percentual_aplicado         AS base_percentual_comissao,
+                    b.valor_comissao_gerado       AS base_valor_comissao_bruta,
+                    b.cod_loja                    AS base_cod_loja,
+                    b.cod_cargo                   AS base_cod_cargo,
+
+                    -- ── Etapa 2: Proporcional (Intercorrências Trabalhistas) ───
+                    p.dias_do_mes                 AS prop_dias_do_mes,
+                    p.dias_trabalhados            AS prop_dias_trabalhados,
+                    (p.dias_do_mes - p.dias_trabalhados)
+                                                  AS prop_dias_intercorrencia,
+                    p.motivo_proporcionalidade    AS prop_motivo_proporcionalidade,
+                    p.valor_comissao_proporcional AS prop_valor_comissao_ajustada,
+
+                    -- ── Etapa 3: Final (Bônus Sazonais / Campanhas) ───────────
+                    f.historico_regras_aplicadas  AS final_historico_regras,
+                    f.valor_comissao_final        AS final_valor_comissao_definitiva
+
+                FROM tb_comissao_calculada_base b
+                LEFT JOIN tb_comissao_calculada_proporcional p
+                    ON p.matricula = b.matricula AND p.date_ref = b.date_ref
+                LEFT JOIN tb_comissao_calculada_final f
+                    ON f.matricula = b.matricula AND f.date_ref = b.date_ref
+                WHERE b.matricula = :matricula
+                  AND b.date_ref  = :date_ref
+                LIMIT 1
+            """),
+            {"matricula": matricula, "date_ref": date_ref}
+        )
+        row = result.mappings().first()
+
+    if not row:
+        return {
+            "encontrado": False,
+            "etapa_base": None,
+            "etapa_proporcional": None,
+            "etapa_final": None,
+            "status_processamento": "NAO_ENCONTRADO",
+        }
+
+    row = dict(row)
+
+    etapa_base = {
+        "valor_total_vendas":   row.get("base_valor_total_vendas"),
+        "percentual_comissao":  row.get("base_percentual_comissao"),
+        "valor_comissao_bruta": row.get("base_valor_comissao_bruta"),
+        "cod_loja":             row.get("base_cod_loja"),
+        "cod_cargo":            row.get("base_cod_cargo"),
+    }
+
+    # Etapa proporcional pode nao ter sido executada ainda
+    has_prop = row.get("prop_valor_comissao_ajustada") is not None
+    etapa_proporcional = {
+        "dias_do_mes":            row.get("prop_dias_do_mes"),
+        "dias_trabalhados":       row.get("prop_dias_trabalhados"),
+        "dias_intercorrencia":    row.get("prop_dias_intercorrencia"),
+        "motivo_proporcionalidade": row.get("prop_motivo_proporcionalidade"),
+        "valor_comissao_ajustada":  row.get("prop_valor_comissao_ajustada"),
+    } if has_prop else None
+
+    # Etapa final pode nao ter sido executada ainda
+    has_final = row.get("final_valor_comissao_definitiva") is not None
+    etapa_final = {
+        "historico_regras_aplicadas": row.get("final_historico_regras"),
+        "valor_comissao_definitiva":  row.get("final_valor_comissao_definitiva"),
+    } if has_final else None
+
+    # Determinar status do processamento
+    if has_final:
+        status = "COMPLETO"
+    elif has_prop:
+        status = "PARCIAL_PROPORCIONAL"
+    else:
+        status = "APENAS_BASE"
+
+    return {
+        "encontrado": True,
+        "matricula": matricula,
+        "date_ref": date_ref,
+        "etapa_base": etapa_base,
+        "etapa_proporcional": etapa_proporcional,
+        "etapa_final": etapa_final,
+        "status_processamento": status,
+    }
+
+
 def buscar_comissao_calculada(matricula: str, date_ref: str) -> list[dict]:
     """Busca o cálculo de comissão já processado pelo motor Java."""
     with get_session() as session:

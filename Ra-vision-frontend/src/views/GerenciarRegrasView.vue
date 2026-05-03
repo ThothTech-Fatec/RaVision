@@ -46,6 +46,39 @@ const simulacaoLoading = ref(false)
 const simulacaoData = ref<SimulacaoResponse | null>(null)
 const simulacaoRegraId = ref<number | null>(null)
 
+// Toast de re-processamento automático
+type ToastStatus = 'processing' | 'success' | 'error' | null
+const processingToast = ref<{ status: ToastStatus; message: string }>({ status: null, message: '' })
+
+function showToast(status: ToastStatus, message: string) {
+  processingToast.value = { status, message }
+  if (status === 'success' || status === 'error') {
+    setTimeout(() => { processingToast.value = { status: null, message: '' } }, 7000)
+  }
+}
+
+// Re-processa a folha do mês da regra após aprovação
+async function reprocessarFolha(mesCompetencia: string) {
+  // mesCompetencia vem no formato "YYYY-MM" — o endpoint espera "YYYY-MM-DD"
+  const dateRef = `${mesCompetencia}-01`
+  showToast('processing', `⏳ Reprocessando folha de ${mesCompetencia}...`)
+  const token = localStorage.getItem('token')
+  try {
+    const res = await fetch(
+      `http://localhost:8080/api/calculos/processar-folha?dateRef=${dateRef}`,
+      { method: 'POST', headers: { Authorization: `Bearer ${token}` } }
+    )
+    const text = await res.text()
+    if (res.ok) {
+      showToast('success', `✅ Folha ${mesCompetencia} reprocessada com sucesso! ${text}`)
+    } else {
+      showToast('error', `❌ Erro ao reprocessar: ${text || res.statusText}`)
+    }
+  } catch (err: any) {
+    showToast('error', `❌ Falha de conexão ao reprocessar a folha: ${err.message}`)
+  }
+}
+
 // Form
 const form = ref({
   descricaoRegra: '',
@@ -124,16 +157,22 @@ const deleteRule = async (id: number) => {
     try {
       await axios.delete(`http://localhost:8080/api/regras/${id}`, { headers: getHeaders() })
       await carregarRegras()
-    } catch (error) {
+    } catch (error: any) {
+      const msg = error.response?.data?.message || error.response?.statusText || 'Erro ao excluir a regra. Verifique suas permissões.'
+      alert(`Falha ao excluir: ${msg}`)
       console.error("Erro ao excluir", error)
     }
   }
 }
 
-const aprovarRegra = async (id: number) => {
+const aprovarRegra = async (id: number, mesCompetencia?: string) => {
   try {
     await axios.put(`http://localhost:8080/api/regras/${id}/aprovar`, {}, { headers: getHeaders() })
     await carregarRegras()
+    // Reprocessar automaticamente a folha do mês da regra aprovada
+    if (mesCompetencia) {
+      await reprocessarFolha(mesCompetencia)
+    }
   } catch (error) {
     console.error("Erro ao aprovar", error)
   }
@@ -168,7 +207,9 @@ const simularImpacto = async (id: number) => {
 
 const aprovarViaSimulacao = async () => {
   if (simulacaoRegraId.value) {
-    await aprovarRegra(simulacaoRegraId.value)
+    // Buscar o mesCompetencia da regra que está sendo aprovada pela simulação
+    const regra = regras.value.find(r => r.id === simulacaoRegraId.value)
+    await aprovarRegra(simulacaoRegraId.value, regra?.mesCompetencia)
     simulacaoModalOpen.value = false
   }
 }
@@ -230,7 +271,44 @@ function logout() {
 
 <template>
   <div class="min-h-screen bg-slate-50 flex flex-col font-sans">
-    
+
+    <!-- Toast de reprocessamento automático -->
+    <Transition
+      enter-active-class="transition-all duration-300 ease-out"
+      enter-from-class="opacity-0 -translate-y-4"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition-all duration-200 ease-in"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 -translate-y-4"
+    >
+      <div
+        v-if="processingToast.status"
+        :class="[
+          'fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 px-5 py-3 rounded-2xl shadow-xl border text-sm font-medium max-w-lg w-full mx-4',
+          processingToast.status === 'processing' ? 'bg-indigo-600 text-white border-indigo-500' :
+          processingToast.status === 'success'    ? 'bg-emerald-600 text-white border-emerald-500' :
+                                                    'bg-red-600 text-white border-red-500'
+        ]"
+      >
+        <svg v-if="processingToast.status === 'processing'" class="animate-spin shrink-0 w-4 h-4" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+        </svg>
+        <svg v-else-if="processingToast.status === 'success'" class="shrink-0 w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+        </svg>
+        <svg v-else class="shrink-0 w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+        <span class="truncate">{{ processingToast.message }}</span>
+        <button @click="processingToast.status = null" class="ml-auto shrink-0 opacity-70 hover:opacity-100 transition-opacity">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    </Transition>
+
     <!-- Header -->
     <header class="flex items-center gap-2 px-4 py-3.5 bg-white border-b border-slate-200 shadow-sm shrink-0">
       <div class="flex-1 min-w-0">
@@ -332,9 +410,10 @@ function logout() {
                       </button>
                     </template>
                     
-                    <!-- Botão Simular Impacto para GESTOR_RH + PENDENTE -->
+                    <!-- Ações para GESTOR_RH em regras PENDENTES -->
                     <template v-if="isGestor && regra.statusAprovacao === 'PENDENTE'">
                       <div class="w-px h-4 bg-slate-200 mx-1"></div>
+                      <!-- Simular impacto antes de aprovar/recusar -->
                       <button @click="simularImpacto(regra.id)" class="flex items-center gap-1 px-2 py-1.5 text-violet-600 hover:bg-violet-50 rounded-lg transition-colors text-xs font-medium" title="Simular Impacto Financeiro">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
                         <span class="hidden lg:inline">Simular</span>

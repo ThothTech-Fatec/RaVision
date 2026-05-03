@@ -2,6 +2,8 @@ from langchain_core.tools import tool
 import requests
 import json
 
+from .database import buscar_jornada_comissao as _buscar_jornada_db
+
 # Variável global para armazenar o token JWT recebido no request
 current_auth_token = None
 
@@ -36,6 +38,49 @@ def buscar_regra_por_id(regra_id: int) -> dict | None:
         return None
     except Exception:
         return None
+
+
+@tool
+def buscar_jornada_comissao(matricula: str, date_ref: str) -> str:
+    """Busca a jornada completa de cálculo de comissão de um funcionário no banco de dados.
+
+    Use esta ferramenta SEMPRE que o usuário perguntar sobre:
+    - O valor da comissão de um funcionário
+    - O detalhamento ou explicação do cálculo de comissão
+    - Intercorrências trabalhistas que afetaram a comissão (férias, atestado, afastamento)
+    - Bônus sazonais ou campanhas aplicadas (Black Friday, Faixa de Vendas, etc.)
+    - "Qual o valor final que será pago na folha?"
+
+    A tool une as 3 tabelas de processamento sequencial do motor Java:
+      1. tb_comissao_calculada_base        → comissão bruta (vendas × percentual)
+      2. tb_comissao_calculada_proporcional → ajuste trabalhista (dias úteis, piso salarial)
+      3. tb_comissao_calculada_final        → bônus sazonais / campanhas de RH aprovadas
+
+    Args:
+        matricula: Matrícula do funcionário (ex: "MATRIC-134"). Obrigatório.
+        date_ref:  Mês de competência no formato "YYYY-MM-DD" ou "YYYY-MM"
+                   (ex: "2025-11-01" para Novembro/2025). Obrigatório.
+
+    Returns:
+        String JSON com o dicionário estruturado contendo:
+        - encontrado (bool): se o funcionário foi encontrado na base de cálculo
+        - status_processamento: "COMPLETO", "PARCIAL_PROPORCIONAL", "APENAS_BASE" ou "NAO_ENCONTRADO"
+        - etapa_base: {valor_total_vendas, percentual_comissao, valor_comissao_bruta}
+        - etapa_proporcional: {dias_trabalhados, dias_intercorrencia, tipo_intercorrencia,
+                               valor_comissao_ajustada} ou null se não processado
+        - etapa_final: {valor_bonus_sazonal, descricao_regra_aplicada,
+                        valor_comissao_definitiva} ou null se não processado
+    """
+    try:
+        resultado = _buscar_jornada_db(matricula=matricula, date_ref=date_ref)
+        return json.dumps(resultado, ensure_ascii=False, default=str)
+    except Exception as e:
+        erro = {
+            "encontrado": False,
+            "status_processamento": "ERRO",
+            "mensagem_erro": str(e),
+        }
+        return json.dumps(erro, ensure_ascii=False)
 
 
 @tool
