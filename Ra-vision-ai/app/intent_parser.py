@@ -56,19 +56,33 @@ def parse_intent(message: str, date_ref: str | None = None) -> UserIntent:
     # 4. Determinar tipo de consulta
     #
     # Verbos de ação explícitos: necessários para detectar "criar_regra".
-    # Sem eles, palavras como "bônus" ou "black friday" não são suficientes
-    # para distinguir uma criação de uma simples consulta.
     CRIAR_VERBOS = [
         'criar regra', 'crie um', 'crie uma', 'cria um', 'cria uma',
         'adicionar regra', 'nova regra', 'quero criar', 'quero adicionar',
         'criar bônus', 'criar bonus', 'configurar campanha', 'adicione',
         'me crie', 'me cria', 'gere uma regra', 'gera uma regra',
+        # OVERRIDE_PERCENTUAL
+        'alterar percentual', 'mudar percentual', 'mudar a taxa',
+        'alterar a taxa', 'alterar o percentual', 'mudar o percentual',
+        'definir percentual', 'configurar percentual', 'definir taxa',
+        'aplicar percentual', 'trocar percentual', 'novo percentual',
+        'mudar comissão', 'mudar comissao', 'alterar comissão', 'alterar comissao',
+        # BLACK_FRIDAY / geral
+        'preciso criar', 'preciso adicionar', 'vou criar', 'quero configurar',
+        'criar campanha', 'criar uma campanha', 'adicionar campanha',
+        # BONUS
+        'dar um bônus', 'dar bonus', 'dar bônus', 'conceder bônus',
+        'conceder bonus', 'quero dar', 'somar na base', 'somar bônus',
+        'preciso somar', 'preciso dar', 'preciso aplicar', 'quero somar',
+        # FAIXA_VENDAS
+        'criar faixa', 'nova faixa', 'regra de meta', 'meta de vendas',
+        'se atingir', 'se vender acima', 'se vender mais',
     ]
-    # Tipos de regra: só disparam criar_regra se combinados com verbo E sem matrícula
+    # Tipos de regra: só disparam criar_regra se combinados com verbo
     CRIAR_TIPOS_REGRA = [
         'bônus fixo', 'bonus fixo', 'bônus na base', 'bonus na base',
         'override percentual', 'override de percentual', 'faixa de vendas',
-        'black friday', 'regra sazonal',
+        'faixa vendas', 'black friday', 'regra sazonal', 'campanha de rh',
     ]
     # Verbos de edição: alterar/atualizar/mudar + "regra" ou ID numérico
     EDITAR_VERBOS = [
@@ -81,8 +95,9 @@ def parse_intent(message: str, date_ref: str | None = None) -> UserIntent:
         'mudar o valor da regra', 'mudar a competência da regra',
         'alterar competência da regra', 'trocar regra',
     ]
+
     tem_verbo_criar = any(w in msg_lower for w in CRIAR_VERBOS)
-    tem_tipo_regra = any(w in msg_lower for w in CRIAR_TIPOS_REGRA)
+    tem_tipo_regra  = any(w in msg_lower for w in CRIAR_TIPOS_REGRA)
     tem_verbo_editar = any(w in msg_lower for w in EDITAR_VERBOS)
 
     # Detecção adicional de edição: verbo de modificação + "id" + número
@@ -91,19 +106,39 @@ def parse_intent(message: str, date_ref: str | None = None) -> UserIntent:
     if not tem_verbo_editar and tem_verbo_modificacao and tem_id_numerico:
         tem_verbo_editar = True
 
+    # Detecção de OVERRIDE_PERCENTUAL: verbo de mudança + valor percentual explícito (ex: 8.5%)
+    # Isso captura "alterar percentual da MATRIC-X para 8.5%" sem precisar de ID de regra
+    tem_override_create = bool(
+        re.search(r'\d+[.,]?\d*\s*%', msg_lower)  # tem um valor em % na mensagem
+        and any(w in msg_lower for w in [
+            'alterar', 'mudar', 'aplicar', 'definir', 'configurar',
+            'trocar', 'preciso', 'quero', 'setar', 'fixar',
+        ])
+        and any(w in msg_lower for w in [
+            'percentual', 'taxa', 'comissão', 'comissao', 'override',
+        ])
+        and not tem_id_numerico  # evita confundir com edição de regra existente
+    )
+    if tem_override_create:
+        tem_verbo_criar = True
+
+    # ── Classificação final de intenção ─────────────────────────────────────
+    # ORDEM IMPORTANTE: criar/editar ANTES de comissao/detalhamento
+    # para evitar que frases como "alterar percentual" caiam no fluxo RAG.
+
     if any(w in msg_lower for w in ['quem é', 'quem e', 'gerente', 'responsável', 'responsavel']):
         intent.tipo_consulta = "gerente"
+    elif tem_verbo_editar:
+        # Edição tem prioridade absoluta quando há verbo explícito de modificação de regra
+        intent.tipo_consulta = "editar_regra"
+    elif tem_verbo_criar or (tem_tipo_regra and not intent.cod_loja):
+        # Criação: verbo de ação explícito OU tipo de regra sem loja
+        # (permite matric + verbo criar para BONUS_FIXO/OVERRIDE de uma pessoa específica)
+        intent.tipo_consulta = "criar_regra"
+    elif any(w in msg_lower for w in ['detalh', 'expliq', 'como', 'por que', 'porque', 'passo', 'jornada']):
+        intent.tipo_consulta = "detalhamento"
     elif any(w in msg_lower for w in ['comissão', 'comissao', 'valor', 'quanto', 'calcul']):
         intent.tipo_consulta = "comissao"
-    elif any(w in msg_lower for w in ['detalh', 'expliq', 'como', 'por que', 'porque', 'passo']):
-        intent.tipo_consulta = "detalhamento"
-    elif tem_verbo_editar:
-        # Edição tem prioridade sobre criação quando há verbo explícito de modificação
-        intent.tipo_consulta = "editar_regra"
-    elif tem_verbo_criar or (tem_tipo_regra and not intent.matricula and not intent.cod_loja):
-        # Só classifica como criar_regra se houver verbo de ação explícito
-        # OU se houver tipo de regra SEM matrícula/loja (para não confundir com consulta)
-        intent.tipo_consulta = "criar_regra"
     elif any(w in msg_lower for w in ['loja', 'equipe', 'time', 'todos']):
         intent.tipo_consulta = "loja"
     elif intent.matricula:

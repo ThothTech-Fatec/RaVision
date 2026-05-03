@@ -10,12 +10,13 @@ from .database import (
     buscar_total_vendas_funcionario,
     buscar_vendas_loja,
     buscar_comissao_calculada,
+    buscar_jornada_comissao,
     buscar_percentual_comissao,
     buscar_gerentes_loja
 )
 from .intent_parser import parse_intent
 from .prompts import SYSTEM_PROMPT, build_context_prompt
-from .tools import criar_regra_negocio_dinamica, atualizar_regra_negocio_dinamica, buscar_regra_por_id
+from .tools import criar_regra_negocio_dinamica, atualizar_regra_negocio_dinamica, buscar_regra_por_id, buscar_jornada_comissao as tool_buscar_jornada
 
 # ─────────────────────────────────────────────────────────────────
 # System Prompt rigoroso para o fluxo de Criação de Regras
@@ -71,6 +72,150 @@ Sempre responda em **português brasileiro**, com formatação amigável em **Ma
 """
 
 
+# ─────────────────────────────────────────────────────────────────
+# Builder do Contexto — Jornada Completa da Comissão (RAV-44)
+# ─────────────────────────────────────────────────────────────────
+
+def build_jornada_context_prompt(
+    dados_rh: list[dict],
+    vendas_individuais: float,
+    vendas_loja: float,
+    jornada: dict,
+    percentual_info: dict | None,
+    pergunta: str
+) -> str:
+    """
+    Monta o prompt de contexto com a jornada completa de 3 etapas da comissão.
+    Substitui build_context_prompt para o fluxo RAG principal.
+    """
+    if not dados_rh:
+        return f"""## Contexto de Dados:
+**ATENÇÃO: Nenhum funcionário encontrado com os critérios informados.**
+Não há dados no banco de dados para a matrícula ou competência solicitada.
+
+## Pergunta do Analista:
+{pergunta}
+"""
+
+    rh = dados_rh[0]
+    cod_cargo = rh.get("cod_cargo", 0)
+    is_gerente = cod_cargo == 150
+    tipo_cargo = "Gerente" if is_gerente else "Vendedor"
+    base_vendas = vendas_loja if is_gerente else vendas_individuais
+
+    # Percentual de comissão
+    pct_text = "Não encontrado na tabela de comissionamento."
+    if percentual_info:
+        pct_text = f"{percentual_info.get('pct_comiss', 0)}% ({percentual_info.get('descri_cargo', '')} — {percentual_info.get('descr_marca', '')})"
+
+    # Dados de admissão/demissão
+    data_admiss = rh.get("data_admiss", "N/A")
+    data_demiss = rh.get("data_demiss", None)
+    demiss_text = str(data_demiss) if data_demiss else "Ativo (sem demissão)"
+
+    # ── Etapa 1: Base ──────────────────────────────────────────────
+    etapa_base = jornada.get("etapa_base") or {}
+    base_text = "Não processada ainda."
+    if etapa_base:
+        base_text = f"""
+| Campo | Valor |
+|-------|-------|
+| Total de Vendas | R$ {etapa_base.get('valor_total_vendas', 0):,.2f} |
+| Percentual de Comissão | {etapa_base.get('percentual_comissao', 0)}% |
+| Comissão Base Bruta | **R$ {etapa_base.get('valor_comissao_bruta', 0):,.2f}** |
+"""
+
+    # ── Etapa 2: Proporcional ──────────────────────────────────────
+    etapa_prop = jornada.get("etapa_proporcional")
+    prop_text = "⏳ **Ainda não processada.** O motor Java ainda executará os ajustes de intercorrências trabalhistas."
+    if etapa_prop:
+        dias_trab  = etapa_prop.get("dias_trabalhados", "N/A")
+        dias_mes   = etapa_prop.get("dias_do_mes", "N/A")
+        dias_inter = etapa_prop.get("dias_intercorrencia", 0) or 0
+        motivo     = etapa_prop.get("motivo_proporcionalidade") or "Sem intercorrencia registrada"
+        valor_ajust = etapa_prop.get("valor_comissao_ajustada", 0)
+        prop_text = f"""
+| Campo | Valor |
+|-------|-------|
+| Dias do Mes | {dias_mes} |
+| Dias Trabalhados | {dias_trab} |
+| Dias de Intercorrencia | {dias_inter} |
+| Motivo | {motivo} |
+| Valor Apos Ajuste Trabalhista | **R$ {valor_ajust:,.2f}** |
+"""
+
+    # ── Etapa 3: Final ─────────────────────────────────────────────
+    etapa_final = jornada.get("etapa_final")
+    final_text = "⏳ **Ainda não processada.** As regras sazonais e campanhas de RH aprovadas ainda serão aplicadas pelo motor."
+    if etapa_final:
+        historico  = etapa_final.get("historico_regras_aplicadas") or "Nenhuma regra sazonal aplicada"
+        valor_def  = etapa_final.get("valor_comissao_definitiva", 0)
+        final_text = f"""
+| Campo | Valor |
+|-------|-------|
+| Historico de Regras Aplicadas | {historico} |
+| **Comissao Final Definitiva** | **R$ {valor_def:,.2f}** |
+"""
+
+    status = jornada.get("status_processamento", "NAO_ENCONTRADO")
+    status_labels = {
+        "COMPLETO": "✅ Processamento COMPLETO — todas as 3 etapas executadas.",
+        "PARCIAL_PROPORCIONAL": "⚠️ Processamento PARCIAL — Etapas 1 e 2 concluídas. Etapa 3 (bônus sazonais) ainda pendente.",
+        "APENAS_BASE": "🔄 Processamento INICIAL — apenas Etapa 1 (base) executada. Etapas 2 e 3 ainda pendentes.",
+        "NAO_ENCONTRADO": "❌ Funcionário não encontrado nas tabelas de cálculo para esta competência.",
+    }
+    status_text = status_labels.get(status, status)
+
+    context = f"""## Contexto de Dados — Jornada de Comissionamento:
+
+**Status do Processamento:** {status_text}
+
+### 👤 Dados do Funcionário (Base RH):
+| Campo | Valor |
+|-------|-------|
+| Matrícula | {rh.get('matricula', 'N/A')} |
+| Cargo | {rh.get('descr_cargo', 'N/A')} (Código: {cod_cargo}) |
+| Tipo | **{tipo_cargo}** |
+| Loja | {rh.get('descr_loja', 'N/A')} (Código: {rh.get('cod_loja', 'N/A')}) |
+| Marca | {rh.get('descr_marca', 'N/A')} (Código: {rh.get('cod_marca', 'N/A')}) |
+| Data Admissão | {data_admiss} |
+| Data Demissão | {demiss_text} |
+| Competência (Mês Ref) | {rh.get('date_ref', 'N/A')} |
+
+### 📊 Dados de Vendas:
+| Tipo | Valor |
+|------|-------|
+| Vendas Individuais do Funcionário | R$ {vendas_individuais:,.2f} |
+| Vendas Totais da Loja | R$ {vendas_loja:,.2f} |
+| **Base de Cálculo Utilizada** | **R$ {base_vendas:,.2f}** ({"Total da Loja — cargo de Gerente" if is_gerente else "Vendas Individuais — cargo de Vendedor"}) |
+
+### 💹 Percentual de Comissão (Tabela de Comissionamento):
+{pct_text}
+
+---
+
+### 📌 ETAPA 1 — Comissão Base (Motor Java: tb_comissao_calculada_base):
+{base_text}
+
+### ⚖️ ETAPA 2 — Ajuste Proporcional / Intercorrências Trabalhistas (tb_comissao_calculada_proporcional):
+{prop_text}
+
+### 🎁 ETAPA 3 — Bônus Sazonais / Campanhas de RH (tb_comissao_calculada_final):
+{final_text}
+
+---
+
+## Pergunta do Analista de Operações:
+{pergunta}
+
+## Instrução:
+Responda a pergunta acima usando EXCLUSIVAMENTE os dados do contexto fornecido.
+Siga OBRIGATORIAMENTE os 4 passos numerados da Jornada Matemática da Comissão.
+Se alguma etapa ainda não foi processada, deixe isso claro ao usuário.
+"""
+    return context
+
+
 def get_rag_chain():
     """
     Configura a chain do LangChain com HuggingFace.
@@ -100,9 +245,8 @@ def _extrair_parametros_regra(message: str, date_ref: str) -> dict:
     Tenta extrair os parâmetros de criação de regra diretamente da mensagem.
     Retorna um dict com os campos encontrados e None nos faltantes.
     """
-    import re
     msg_lower = message.lower()
-    
+
     params = {
         "tipo": None,
         "competencia": None,
@@ -110,49 +254,139 @@ def _extrair_parametros_regra(message: str, date_ref: str) -> dict:
         "condicoes": None,
         "descricao": None,
     }
-    
-    # Detectar tipo
+
+    # ── 1. Detectar TIPO ────────────────────────────────────────────────────────
     tipo_map = {
-        "bonus_fixo": ["bônus fixo", "bonus fixo", "bônus nominal", "bonus nominal"],
-        "BONUS_BASE": ["bônus na base", "bonus na base", "bônus base", "bonus base"],
-        "OVERRIDE_PERCENTUAL": ["override", "substituição", "substituicao", "alterar percentual", "mudar comissão"],
-        "BLACK_FRIDAY": ["black friday", "blackfriday"],
-        "FAIXA_VENDAS": ["faixa de vendas", "faixa vendas", "escalonado", "performance"],
+        "BONUS_FIXO": [
+            "bônus fixo", "bonus fixo", "bônus nominal", "bonus nominal",
+        ],
+        "BONUS_BASE": [
+            "bônus na base", "bonus na base", "bônus base", "bonus base",
+            "somar na base", "somar", "na base de cálculo", "na base de calculo",
+            "adicionar na base", "base de cálculo", "base de calculo",
+            "somar ao base", "incrementar base",
+        ],
+        "OVERRIDE_PERCENTUAL": [
+            "override", "substituição", "substituicao",
+            "alterar percentual", "alterar o percentual", "alterar a taxa",
+            "mudar percentual", "mudar o percentual", "mudar a taxa",
+            "mudar comissão", "mudar comissao", "alterar comissão", "alterar comissao",
+            "definir percentual", "configurar percentual", "definir taxa",
+            "aplicar percentual", "trocar percentual", "novo percentual",
+        ],
+        "BLACK_FRIDAY": [
+            "black friday", "blackfriday",
+        ],
+        "FAIXA_VENDAS": [
+            "faixa de vendas", "faixa vendas", "escalonado", "performance",
+            "se vender acima", "se atingir", "vender mais de", "meta de vendas",
+            "acima de", "maior que",
+        ],
     }
     for tipo_key, keywords in tipo_map.items():
         if any(kw in msg_lower for kw in keywords):
-            params["tipo"] = tipo_key.upper()
+            params["tipo"] = tipo_key
             break
-    
-    # Detectar valor
-    valor_match = re.search(r'R\$\s*([\d.,]+)', message)
-    if not valor_match:
-        valor_match = re.search(r'(\d+[.,]?\d*)\s*(?:reais|real)', msg_lower)
-    if not valor_match:
-        valor_match = re.search(r'(?:valor|bônus|bonus|de)\s+(?:de\s+)?(?:R\$\s*)?([\d.,]+)', message, re.IGNORECASE)
-    if valor_match:
-        valor_str = valor_match.group(1).replace(".", "").replace(",", ".")
-        try:
-            params["valor"] = float(valor_str)
-        except ValueError:
-            pass
-    
-    # Detectar matrícula
+
+    # ── 2. Detectar VALOR ───────────────────────────────────────────────────────
+
+    # Caso especial: FAIXA_VENDAS tem DOIS valores — "acima de R$ X → bônus R$ Y"
+    # O valor da regra = bônus (segundo R$ ou maior R$)
+    if params["tipo"] == "FAIXA_VENDAS":
+        todos_valores = re.findall(r'R\$\s*([\d.,]+)', message)
+        if len(todos_valores) >= 2:
+            # Primeiro = meta mínima (minVendas), Último = bônus (valor da regra)
+            def _parse_brl(s):
+                return float(s.replace(".", "").replace(",", "."))
+            min_vendas_raw = todos_valores[0]
+            bonus_raw      = todos_valores[-1]
+            params["valor"] = _parse_brl(bonus_raw)
+            # minVendas vai para as condições (será mesclado com cargo/marca abaixo)
+            params["_min_vendas"] = _parse_brl(min_vendas_raw)
+        elif len(todos_valores) == 1:
+            params["valor"] = float(todos_valores[0].replace(".", "").replace(",", "."))
+        # Fallback: tentar extrair valor percentual ou numérico
+        if params["valor"] is None:
+            pct_match = re.search(r'(\d+[.,]?\d*)\s*%', message)
+            if pct_match:
+                params["valor"] = float(pct_match.group(1).replace(",", "."))
+
+    # Caso especial: OVERRIDE_PERCENTUAL — o valor é o novo percentual (X%)
+    elif params["tipo"] == "OVERRIDE_PERCENTUAL":
+        pct_match = re.search(r'(\d+[.,]?\d*)\s*%', message)
+        if pct_match:
+            params["valor"] = float(pct_match.group(1).replace(",", "."))
+        # Fallback R$
+        if params["valor"] is None:
+            r_match = re.search(r'R\$\s*([\d.,]+)', message)
+            if r_match:
+                params["valor"] = float(r_match.group(1).replace(".", "").replace(",", "."))
+
+    # Caso especial: BLACK_FRIDAY — o valor é o acréscimo percentual (+X%)
+    elif params["tipo"] == "BLACK_FRIDAY":
+        pct_match = re.search(r'[+\-]?\s*(\d+[.,]?\d*)\s*%', message)
+        if pct_match:
+            params["valor"] = float(pct_match.group(1).replace(",", "."))
+        if params["valor"] is None:
+            r_match = re.search(r'R\$\s*([\d.,]+)', message)
+            if r_match:
+                params["valor"] = float(r_match.group(1).replace(".", "").replace(",", "."))
+
+    # Casos gerais: BONUS_FIXO, BONUS_BASE — valor em R$
+    else:
+        valor_match = re.search(r'R\$\s*([\d.,]+)', message)
+        if not valor_match:
+            valor_match = re.search(r'(\d+[.,]?\d*)\s*(?:reais|real)', msg_lower)
+        if not valor_match:
+            valor_match = re.search(
+                r'(?:valor|bônus|bonus|de)\s+(?:de\s+)?(?:R\$\s*)?([\d.,]+)',
+                message, re.IGNORECASE
+            )
+        if valor_match:
+            try:
+                params["valor"] = float(
+                    valor_match.group(1).replace(".", "").replace(",", ".")
+                )
+            except ValueError:
+                pass
+
+    # ── 3. Detectar CONDIÇÃO DE APLICAÇÃO ──────────────────────────────────────
     matric_match = re.search(r'MATRIC[- ]?(\d+)', message, re.IGNORECASE)
+    cargo_match  = re.search(r'cargo\s+(\d+)', msg_lower)
+    marca_match  = re.search(r'marca\s+(\d+)', msg_lower)
+
+    # "para todos", "geral", "funcionários todos", sem alvo específico → {}
+    tem_todos = any(w in msg_lower for w in [
+        'para todos', 'todos os funcionários', 'todos os funcionarios',
+        'funcionários todos', 'geral', 'todos',
+    ])
+
     if matric_match:
-        params["condicoes"] = json.dumps({"matricula": f"MATRIC-{int(matric_match.group(1))}"})
-    
-    # Detectar cargo
-    cargo_match = re.search(r'cargo\s+(\d+)', msg_lower)
-    if cargo_match and not params["condicoes"]:
-        params["condicoes"] = json.dumps({"codCargo": int(cargo_match.group(1))})
-    
-    # Detectar marca
-    marca_match = re.search(r'marca\s+(\d+)', msg_lower)
-    if marca_match and not params["condicoes"]:
-        params["condicoes"] = json.dumps({"codMarca": int(marca_match.group(1))})
-    
-    # Detectar competência (mês)
+        params["condicoes"] = json.dumps(
+            {"matricula": f"MATRIC-{int(matric_match.group(1))}"}
+        )
+    elif cargo_match:
+        cond = {"codCargo": int(cargo_match.group(1))}
+        # Para FAIXA_VENDAS: mesclar cargo com minVendas
+        if params["tipo"] == "FAIXA_VENDAS" and "_min_vendas" in params:
+            cond["minVendas"] = params["_min_vendas"]
+        params["condicoes"] = json.dumps(cond)
+    elif marca_match:
+        cond = {"codMarca": int(marca_match.group(1))}
+        if params["tipo"] == "FAIXA_VENDAS" and "_min_vendas" in params:
+            cond["minVendas"] = params["_min_vendas"]
+        params["condicoes"] = json.dumps(cond)
+    elif params["tipo"] == "FAIXA_VENDAS" and "_min_vendas" in params:
+        # Sem cargo/marca explícito: condição é só a meta mínima
+        params["condicoes"] = json.dumps({"minVendas": params["_min_vendas"]})
+    elif tem_todos:
+        # Sem alvo específico mas com "para todos" → aplica a todos
+        params["condicoes"] = json.dumps({})
+
+    # Limpar chave auxiliar que não pertence ao schema final
+    params.pop("_min_vendas", None)
+
+    # ── 4. Detectar COMPETÊNCIA (mês) ──────────────────────────────────────────
     from .intent_parser import MESES_MAP
     for mes_nome, mes_num in MESES_MAP.items():
         if mes_nome in msg_lower:
@@ -160,10 +394,6 @@ def _extrair_parametros_regra(message: str, date_ref: str) -> dict:
             ano = ano_match.group(0) if ano_match else "2025"
             params["competencia"] = f"{ano}-{mes_num}"
             break
-    
-    if not params["competencia"] and date_ref:
-        # Não forçar — deixar None para que a IA pergunte
-        pass
 
     return params
 
@@ -378,6 +608,7 @@ async def process_user_query(message: str, date_ref: str, auth_header: str = Non
             "vendas_individuais": 0.0,
             "vendas_loja": 0.0,
             "comissao_calculada": [],
+            "jornada_comissao": {"encontrado": False, "status_processamento": "NAO_ENCONTRADO"},
             "percentual_info": None
         }
         
@@ -396,24 +627,25 @@ async def process_user_query(message: str, date_ref: str, auth_header: str = Non
             rh_principal = context_data["dados_rh"][0]
             matricula_alvo = rh_principal.get("matricula")
             cod_loja_alvo = rh_principal.get("cod_loja")
-            
+
             context_data["vendas_individuais"] = buscar_total_vendas_funcionario(matricula_alvo, target_date)
             context_data["vendas_loja"] = buscar_vendas_loja(cod_loja_alvo, target_date)
             context_data["comissao_calculada"] = buscar_comissao_calculada(matricula_alvo, target_date)
+            context_data["jornada_comissao"] = buscar_jornada_comissao(matricula_alvo, target_date)
             context_data["percentual_info"] = buscar_percentual_comissao(
-                rh_principal.get("cod_marca"), 
+                rh_principal.get("cod_marca"),
                 rh_principal.get("cod_cargo")
             )
-            print(f"DEBUG: Enriquecimento concluído para {matricula_alvo}.")
+            print(f"DEBUG: Enriquecimento concluído para {matricula_alvo}. Status jornada: {context_data['jornada_comissao'].get('status_processamento')}")
         else:
             print(f"DEBUG: Nenhum dado de RH encontrado para os critérios.")
                 
         # 3. Build Context Prompt
-        context_prompt = build_context_prompt(
+        context_prompt = build_jornada_context_prompt(
             dados_rh=context_data["dados_rh"],
             vendas_individuais=context_data["vendas_individuais"],
             vendas_loja=context_data["vendas_loja"],
-            comissao_calculada=context_data["comissao_calculada"],
+            jornada=context_data["jornada_comissao"],
             percentual_info=context_data["percentual_info"],
             pergunta=message
         )

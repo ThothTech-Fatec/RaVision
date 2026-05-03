@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 
@@ -16,6 +16,9 @@ interface HistoricoItem {
 const historico = ref<HistoricoItem[]>([])
 const isLoading = ref(true)
 const errorMessage = ref('')
+const deleteError = ref('')
+const role = localStorage.getItem('role')
+const isAdmin = computed(() => role === 'ADMINISTRADOR')
 
 function getAuthHeaders() {
   const token = localStorage.getItem('token')
@@ -42,6 +45,28 @@ async function carregarHistorico() {
     }
   } finally {
     isLoading.value = false
+  }
+}
+
+async function excluirRegistro(id: number) {
+  if (!confirm('Excluir este registro do histórico?')) return
+  deleteError.value = ''
+  try {
+    await axios.delete(`http://localhost:8080/api/historico/${id}`, { headers: getAuthHeaders() })
+    historico.value = historico.value.filter(h => h.id !== id)
+  } catch (error: any) {
+    deleteError.value = error.response?.data?.message || 'Erro ao excluir registro.'
+  }
+}
+
+async function limparHistorico() {
+  if (!confirm('Tem certeza que deseja apagar TODO o histórico? Esta ação não pode ser desfeita.')) return
+  deleteError.value = ''
+  try {
+    await axios.delete('http://localhost:8080/api/historico', { headers: getAuthHeaders() })
+    historico.value = []
+  } catch (error: any) {
+    deleteError.value = error.response?.data?.message || 'Erro ao limpar histórico.'
   }
 }
 
@@ -133,6 +158,18 @@ onMounted(carregarHistorico)
 
       <!-- Ações -->
       <div class="flex items-center gap-1 ml-2">
+        <!-- Limpar todo o histórico (admin only) -->
+        <button
+          v-if="isAdmin"
+          @click="limparHistorico"
+          class="flex items-center gap-1.5 px-3 py-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-colors text-xs font-semibold border border-red-100"
+          title="Limpar todo o histórico"
+        >
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+          <span class="hidden sm:inline">Limpar Tudo</span>
+        </button>
         <button
           @click="carregarHistorico"
           class="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors"
@@ -166,11 +203,11 @@ onMounted(carregarHistorico)
         </div>
 
         <!-- Erro -->
-        <div v-if="errorMessage" class="flex items-center gap-3 p-4 mb-6 bg-red-50 text-red-700 rounded-xl text-sm font-medium">
+        <div v-if="errorMessage || deleteError" class="flex items-center gap-3 p-4 mb-6 bg-red-50 text-red-700 rounded-xl text-sm font-medium">
           <svg class="w-5 h-5 text-red-400 shrink-0" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
           </svg>
-          {{ errorMessage }}
+          {{ errorMessage || deleteError }}
         </div>
 
         <!-- Loading -->
@@ -191,6 +228,7 @@ onMounted(carregarHistorico)
                 <th class="text-left px-5 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Ação</th>
                 <th class="text-left px-5 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Data / Hora</th>
                 <th class="text-left px-5 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Detalhes</th>
+                <th v-if="isAdmin" class="px-5 py-3"></th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
@@ -217,6 +255,18 @@ onMounted(carregarHistorico)
                 </td>
                 <td class="px-5 py-4">
                   <span class="text-slate-600 line-clamp-2 leading-relaxed">{{ item.detalhesAcao || '—' }}</span>
+                </td>
+                <!-- Botão excluir (admin only) -->
+                <td v-if="isAdmin" class="px-3 py-4 text-right">
+                  <button
+                    @click="excluirRegistro(item.id)"
+                    class="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Excluir registro"
+                  >
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
                 </td>
               </tr>
             </tbody>
