@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, nextTick, onMounted } from 'vue'
+import { ref, computed, nextTick, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import MarkdownIt from 'markdown-it'
@@ -16,10 +16,53 @@ interface Message {
   time: string
 }
 
+export interface ChatSession {
+  id: number
+  title: string
+  updatedAt: number
+  messages: Message[]
+}
+
 const newMessage = ref('')
 const isTyping = ref(false)
 const messagesEndRef = ref<HTMLElement | null>(null)
-const messages = ref<Message[]>([])
+
+const chatSessions = ref<ChatSession[]>([])
+const activeChatId = ref<number | null>(null)
+
+const messages = computed(() => {
+  const session = chatSessions.value.find(s => s.id === activeChatId.value)
+  return session ? session.messages : []
+})
+
+const storageKey = computed(() => {
+  const username = localStorage.getItem('username') || 'default'
+  return `ra_vision_chats_${username}`
+})
+
+function saveChats() {
+  localStorage.setItem(storageKey.value, JSON.stringify(chatSessions.value))
+}
+
+onMounted(() => {
+  const saved = localStorage.getItem(storageKey.value)
+  if (saved) {
+    try {
+      chatSessions.value = JSON.parse(saved)
+    } catch (e) {
+      console.error('Erro ao ler chats salvos', e)
+    }
+  }
+
+  const pendingId = localStorage.getItem('ra_vision_active_chat')
+  if (pendingId) {
+    activeChatId.value = Number(pendingId)
+    localStorage.removeItem('ra_vision_active_chat')
+    nextTick(() => {
+      messagesEndRef.value?.scrollIntoView({ behavior: 'smooth' })
+    })
+  }
+})
 
 // Mês de referência (Competência)
 const dateRef = ref('2025-11-01') // Default para o último mês do mock
@@ -32,13 +75,6 @@ const suggestions = [
   'Quero criar uma regra de negócio',
 ]
 
-const quickReplies = [
-  { emoji: '🪄', label: 'Criar Bônus Fixo para um Vendedor' },
-  { emoji: '📈', label: 'Configurar Campanha de Black Friday' },
-  { emoji: '🎯', label: 'Criar Bônus de Faixa de Vendas' },
-  { emoji: '🔄', label: 'Criar Override de Percentual' },
-  { emoji: '📊', label: 'Criar Bônus na Base de Cálculo' },
-]
 
 function getTime() {
   const now = new Date()
@@ -49,9 +85,27 @@ async function sendMessage(text?: string) {
   const content = (text ?? newMessage.value).trim()
   if (!content || isTyping.value) return
 
-  // Adiciona mensagem do usuário
-  messages.value.push({ id: Date.now(), text: content, fromMe: true, time: getTime() })
   newMessage.value = ''
+
+  let session = chatSessions.value.find(s => s.id === activeChatId.value)
+  
+  if (!session) {
+    session = {
+      id: Date.now(),
+      title: content.length > 35 ? content.substring(0, 35) + '...' : content,
+      updatedAt: Date.now(),
+      messages: []
+    }
+    chatSessions.value.unshift(session)
+    activeChatId.value = session.id
+  }
+
+  session.updatedAt = Date.now()
+  session.messages.push({ id: Date.now(), text: content, fromMe: true, time: getTime() })
+  
+  // Ordenar para manter os mais recentes no topo
+  chatSessions.value.sort((a, b) => b.updatedAt - a.updatedAt)
+  saveChats()
 
   await nextTick()
   messagesEndRef.value?.scrollIntoView({ behavior: 'smooth' })
@@ -71,20 +125,24 @@ async function sendMessage(text?: string) {
 
     const aiText = response.data.response
 
-    messages.value.push({
+    session.messages.push({
       id: Date.now() + 1,
       text: aiText,
       fromMe: false,
       time: getTime(),
     })
+    session.updatedAt = Date.now()
+    saveChats()
   } catch (error: any) {
     console.error('Erro ao chamar IA:', error)
-    messages.value.push({
+    session.messages.push({
       id: Date.now() + 1,
       text: '⚠️ Ocorreu um erro ao conectar com o assistente Ra Vision. Verifique se os serviços backend estão rodando.',
       fromMe: false,
       time: getTime(),
     })
+    session.updatedAt = Date.now()
+    saveChats()
   } finally {
     isTyping.value = false
   }
@@ -101,11 +159,30 @@ function handleKeydown(e: KeyboardEvent) {
 }
 
 function newChat() {
-  messages.value = []
+  activeChatId.value = null
+}
+
+function selectChat(id: number) {
+  activeChatId.value = id
+  nextTick(() => {
+    messagesEndRef.value?.scrollIntoView({ behavior: 'smooth' })
+  })
+}
+
+function deleteChat(id: number) {
+  if (window.confirm('Tem certeza que deseja excluir esta conversa? Essa ação não pode ser desfeita.')) {
+    chatSessions.value = chatSessions.value.filter(c => c.id !== id)
+    if (activeChatId.value === id) {
+      activeChatId.value = null
+    }
+    saveChats()
+  }
 }
 
 function logout() {
-  localStorage.clear()
+  localStorage.removeItem('token')
+  localStorage.removeItem('role')
+  localStorage.removeItem('username') // Caso haja
   router.push('/')
 }
 
@@ -120,7 +197,15 @@ function formatMarkdown(text: string) {
   <div class="h-screen flex flex-row bg-slate-50 overflow-hidden">
 
     <!-- Sidebar -->
-    <ChatSidebar :open="sidebarOpen" @toggle="sidebarOpen = !sidebarOpen" @new-chat="newChat" />
+    <ChatSidebar 
+      :open="sidebarOpen" 
+      :conversations="chatSessions"
+      :active-id="activeChatId"
+      @toggle="sidebarOpen = !sidebarOpen" 
+      @new-chat="newChat" 
+      @select-chat="selectChat"
+      @delete-chat="deleteChat"
+    />
 
     <!-- Área principal -->
     <div class="flex-1 flex flex-col overflow-hidden min-w-0">
@@ -308,18 +393,6 @@ function formatMarkdown(text: string) {
     <!-- Input de mensagem -->
     <div class="shrink-0 px-4 py-3 bg-white border-t border-slate-200">
       <div class="max-w-3xl mx-auto">
-        <!-- Quick Reply Pills -->
-        <div v-if="!isTyping" class="flex flex-wrap gap-1.5 mb-2.5">
-          <button
-            v-for="qr in quickReplies"
-            :key="qr.label"
-            @click="sendMessage(qr.emoji + ' ' + qr.label)"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 rounded-full text-xs text-slate-600 hover:text-indigo-700 transition-all duration-150 shadow-xs hover:shadow-sm cursor-pointer"
-          >
-            <span>{{ qr.emoji }}</span>
-            <span class="font-medium">{{ qr.label }}</span>
-          </button>
-        </div>
         <div class="flex items-end gap-2 bg-slate-100 rounded-2xl px-4 py-2.5 shadow-inner">
           <textarea
             v-model="newMessage"

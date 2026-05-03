@@ -221,7 +221,9 @@ const getStatusColor = (status: string) => {
 }
 
 function logout() {
-  localStorage.clear()
+  localStorage.removeItem('token')
+  localStorage.removeItem('role')
+  localStorage.removeItem('username')
   router.push('/')
 }
 </script>
@@ -275,6 +277,7 @@ function logout() {
           <table class="w-full text-left text-sm whitespace-nowrap">
             <thead class="bg-slate-50 text-slate-600 border-b border-slate-200">
               <tr>
+                <th class="px-4 py-4 font-semibold text-center">ID</th>
                 <th class="px-6 py-4 font-semibold">Descrição</th>
                 <th class="px-6 py-4 font-semibold">Tipo</th>
                 <th class="px-6 py-4 font-semibold">Competência</th>
@@ -286,15 +289,25 @@ function logout() {
             </thead>
             <tbody class="divide-y divide-slate-100">
               <tr v-if="regras.length === 0">
-                <td colspan="7" class="px-6 py-8 text-center text-slate-500 text-sm">
+                <td colspan="8" class="px-6 py-8 text-center text-slate-500 text-sm">
                   Nenhuma regra encontrada.
                 </td>
               </tr>
               <tr v-for="regra in regras" :key="regra.id" class="hover:bg-slate-50 transition-colors">
+
+                <!-- Coluna ID -->
+                <td class="px-4 py-4 text-center">
+                  <span class="inline-flex items-center justify-center w-9 h-9 bg-indigo-50 text-indigo-700 font-bold text-sm rounded-lg border border-indigo-200">
+                    {{ regra.id }}
+                  </span>
+                </td>
+
+                <!-- Descrição -->
                 <td class="px-6 py-4">
                   <div class="font-medium text-slate-800">{{ regra.descricaoRegra }}</div>
-                  <div class="text-xs text-slate-400 mt-1">ID: {{ regra.id }} | {{ regra.condicoesAplicacao }}</div>
+                  <div v-if="regra.condicoesAplicacao && regra.condicoesAplicacao !== '{}'" class="text-xs text-slate-400 mt-0.5 font-mono">{{ regra.condicoesAplicacao }}</div>
                 </td>
+
                 <td class="px-6 py-4 text-slate-600">
                   <span class="px-2 py-1 bg-slate-100 text-slate-600 rounded-md text-xs font-medium border border-slate-200">{{ formatTipo(regra.tipoRegra) }}</span>
                 </td>

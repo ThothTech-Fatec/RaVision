@@ -1,4 +1,5 @@
 import os
+import re
 import json
 from langchain_huggingface import HuggingFaceEndpoint, ChatHuggingFace
 from langchain_core.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
@@ -14,7 +15,7 @@ from .database import (
 )
 from .intent_parser import parse_intent
 from .prompts import SYSTEM_PROMPT, build_context_prompt
-from .tools import criar_regra_negocio_dinamica
+from .tools import criar_regra_negocio_dinamica, atualizar_regra_negocio_dinamica, buscar_regra_por_id
 
 # ─────────────────────────────────────────────────────────────────
 # System Prompt rigoroso para o fluxo de Criação de Regras
@@ -273,7 +274,100 @@ async def process_user_query(message: str, date_ref: str, auth_header: str = Non
             except Exception as tool_err:
                 print(f"ERROR no fluxo de criação de regra: {tool_err}")
                 return f"❌ Houve um erro ao tentar criar a regra: {tool_err}"
-        
+
+        # ─────────────────────────────────────────────────────────
+        # Fluxo de Edição de Regra
+        # ─────────────────────────────────────────────────────────
+        elif intent.tipo_consulta == "editar_regra":
+            print("DEBUG: Iniciando fluxo de edição de regra...")
+            try:
+                import app.tools as tools_module
+                tools_module.current_auth_token = auth_header
+
+                # 1. Extrair o ID da regra da mensagem
+                id_match = re.search(
+                    r'(?:regra\s+(?:de\s+)?(?:id\s+)?|\bid\s+|#)(\d+)',
+                    message, re.IGNORECASE
+                )
+                if not id_match:
+                    return (
+                        "Para **atualizar** uma regra, preciso saber o **ID** dela. ✏️\n\n"
+                        "Você pode verificar o ID na tela de **Gerenciar Regras**.\n\n"
+                        "**Exemplo de uso:**\n"
+                        "> *'Altera a regra de ID 5 para R$ 1.250,50 e altere a competência para Dezembro de 2025'*"
+                    )
+
+                regra_id = int(id_match.group(1))
+                print(f"DEBUG: ID da regra a editar: {regra_id}")
+
+                # 2. Buscar dados atuais da regra no backend
+                regra_atual = buscar_regra_por_id(regra_id)
+                if not regra_atual:
+                    return (
+                        f"❌ Não encontrei nenhuma regra com **ID {regra_id}**.\n\n"
+                        "Verifique o ID na tela de Gerenciar Regras e tente novamente."
+                    )
+                print(f"DEBUG: Regra atual encontrada: {regra_atual}")
+
+                # 3. Extrair campos que o usuário quer alterar (mesmo parser da criação)
+                novos = _extrair_parametros_regra(message, target_date)
+                print(f"DEBUG: Novos parâmetros extraídos: {novos}")
+
+                # 4. Merge: usa o novo valor se informado, senão mantém o atual
+                tipo_final      = novos["tipo"]       or regra_atual.get("tipoRegra")
+                competencia_final = novos["competencia"] or regra_atual.get("mesCompetencia")
+                valor_final     = novos["valor"]      if novos["valor"] is not None else float(regra_atual.get("valorModificador", 0))
+                condicoes_final = novos["condicoes"]  or regra_atual.get("condicoesAplicacao") or "{}"
+
+                tipo_labels = {
+                    "BONUS_FIXO": "Bônus Fixo", "BONUS_BASE": "Bônus na Base",
+                    "OVERRIDE_PERCENTUAL": "Override Percentual",
+                    "BLACK_FRIDAY": "Black Friday", "FAIXA_VENDAS": "Faixa de Vendas",
+                }
+                tipo_label = tipo_labels.get(tipo_final, tipo_final)
+                descricao_final = f"{tipo_label} - Valor: {valor_final} - Competência: {competencia_final} (editado via chat)"
+
+                # 5. Chamar a tool de atualização
+                print(f"DEBUG: Atualizando regra ID {regra_id} com: tipo={tipo_final}, valor={valor_final}, competencia={competencia_final}")
+                tool_result = atualizar_regra_negocio_dinamica.invoke({
+                    "regra_id": regra_id,
+                    "descricao": descricao_final,
+                    "tipo": tipo_final,
+                    "competencia": competencia_final,
+                    "condicoes": condicoes_final,
+                    "valor": valor_final,
+                })
+                print(f"DEBUG: Resultado da atualização: {tool_result}")
+
+                # 6. Formatar exibição das condições
+                def formatar_condicoes(cond_json: str) -> str:
+                    try:
+                        cond = json.loads(cond_json)
+                        if "matricula" in cond:  return f"Matrícula **{cond['matricula']}**"
+                        if "codCargo" in cond:   return f"Cargo **{cond['codCargo']}**"
+                        if "codMarca" in cond:   return f"Marca **{cond['codMarca']}**"
+                        if "minVendas" in cond:  return f"Meta mín. **R$ {cond['minVendas']}**"
+                        return "**Todos os funcionários**"
+                    except Exception:
+                        return cond_json
+
+                cond_antes  = formatar_condicoes(regra_atual.get("condicoesAplicacao") or "{}")
+                cond_depois = formatar_condicoes(condicoes_final)
+
+                resposta  = f"✅ **Regra ID {regra_id} atualizada com sucesso!**\n\n"
+                resposta += f"| Campo | Antes | Depois |\n|-------|-------|--------|\n"
+                resposta += f"| Tipo | {regra_atual.get('tipoRegra')} | {tipo_final} |\n"
+                resposta += f"| Competência | {regra_atual.get('mesCompetencia')} | {competencia_final} |\n"
+                resposta += f"| Valor | {regra_atual.get('valorModificador')} | {valor_final} |\n"
+                resposta += f"| Aplicação | {cond_antes} | {cond_depois} |\n\n"
+                resposta += f"📋 {tool_result}\n\n"
+                resposta += "> A regra voltou para status **PENDENTE** e aguarda nova aprovação do Gestor de RH."
+                return resposta
+
+            except Exception as edit_err:
+                print(f"ERROR no fluxo de edição de regra: {edit_err}")
+                return f"❌ Houve um erro ao tentar atualizar a regra: {edit_err}"
+
         # ─────────────────────────────────────────────────────────
         # Fluxo RAG padrão (consultas de comissão, detalhamento, etc)
         # ─────────────────────────────────────────────────────────

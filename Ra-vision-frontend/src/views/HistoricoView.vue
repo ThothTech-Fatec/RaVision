@@ -33,7 +33,9 @@ async function carregarHistorico() {
     historico.value = response.data
   } catch (error: any) {
     if (error.response?.status === 401 || error.response?.status === 403) {
-      localStorage.clear()
+      localStorage.removeItem('token')
+      localStorage.removeItem('role')
+      localStorage.removeItem('username')
       router.push('/')
     } else {
       errorMessage.value = 'Erro ao carregar o histórico. Verifique se o backend está rodando.'
@@ -76,7 +78,9 @@ function getActionColor(acao: string) {
 }
 
 function logout() {
-  localStorage.clear()
+  localStorage.removeItem('token')
+  localStorage.removeItem('role')
+  localStorage.removeItem('username')
   router.push('/')
 }
 

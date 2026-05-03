@@ -24,7 +24,9 @@ function handlePasswordSave(_currentPassword: string, _newPassword: string) {
 }
 
 function logout() {
-  localStorage.clear()
+  localStorage.removeItem('token')
+  localStorage.removeItem('role')
+  localStorage.removeItem('username')
   router.push('/')
 }
 
