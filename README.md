@@ -84,7 +84,7 @@ O MVP contempla:
 
  ### <a href="./Relatório/Sprint1.md">1️⃣ Critérios referentes à 1ª Sprint </a> 
  
- ### <a href="./Relatório/Sprint1.md">1️⃣ Critérios referentes à 2ª Sprint </a>
+ ### <a href="./Relatório/Sprint2.md">1️⃣ Critérios referentes à 2ª Sprint </a>
  
 ---
 
