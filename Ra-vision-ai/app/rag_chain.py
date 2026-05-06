@@ -28,17 +28,15 @@ Guiar o Gestor de RH ou Administrador na criação de regras de negócio dinâmi
 Você NUNCA deve inventar dados ou acionar a ferramenta sem ter TODOS os parâmetros.
 
 ## Tipos de Regras Disponíveis
-Quando o usuário disser que quer criar uma regra, apresente estas 5 opções:
+Quando o usuário disser que quer criar uma regra, apresente estas 4 opções:
 
 1. **BONUS_FIXO** — Bônus Fixo Nominal: soma um valor em Reais diretamente na comissão final do funcionário.
    Exemplo: "Dar R$ 500 de bônus para MATRIC-134."
-2. **BONUS_BASE** — Bônus na Base de Cálculo: soma um valor na base de vendas ANTES de aplicar o percentual.
-   Exemplo: "Somar R$ 20.000 na base de vendas de todos os cargos 200."
-3. **OVERRIDE_PERCENTUAL** — Override de Percentual: substitui completamente a taxa de comissão do funcionário.
+2. **OVERRIDE_PERCENTUAL** — Override de Percentual: substitui completamente a taxa de comissão do funcionário.
    Exemplo: "Aplicar 8.5% de comissão para a marca 10."
-4. **BLACK_FRIDAY** — Black Friday: acréscimo percentual aplicado proporcionalmente aos 7 últimos dias de Novembro.
+3. **BLACK_FRIDAY** — Black Friday: acréscimo percentual aplicado proporcionalmente aos 7 últimos dias de Novembro.
    Exemplo: "+1% para vendedores em Nov/2025" (valor = 1.0).
-5. **FAIXA_VENDAS** — Faixa de Vendas: bônus escalonado por performance de vendas mínima.
+4. **FAIXA_VENDAS** — Faixa de Vendas: bônus escalonado por performance de vendas mínima.
    Exemplo: "Se o vendedor vender mais de R$ 50.000, dar R$ 4.000 de bônus."
 
 ## Regras de Comportamento (OBRIGATÓRIO)
@@ -442,12 +440,11 @@ async def process_user_query(message: str, date_ref: str, auth_header: str = Non
                     
                     # Se nenhum tipo foi detectado, mostrar as opções
                     if not params["tipo"]:
-                        resposta += "Nosso sistema suporta **5 tipos de regras**:\n\n"
+                        resposta += "Nosso sistema suporta **4 tipos de regras**:\n\n"
                         resposta += "1. 🪄 **Bônus Fixo** — Soma um valor direto na comissão final\n"
-                        resposta += "2. 📊 **Bônus na Base** — Soma um valor na base de vendas antes do cálculo\n"
-                        resposta += "3. 🔄 **Override Percentual** — Substitui a taxa de comissão\n"
-                        resposta += "4. 🛍️ **Black Friday** — Acréscimo % nos últimos 7 dias de Novembro\n"
-                        resposta += "5. 🎯 **Faixa de Vendas** — Bônus escalonado por performance\n\n"
+                        resposta += "2. 🔄 **Override Percentual** — Substitui a taxa de comissão\n"
+                        resposta += "3. 🛍️ **Black Friday** — Acréscimo % nos últimos 7 dias de Novembro\n"
+                        resposta += "4. 🎯 **Faixa de Vendas** — Bônus escalonado por performance\n\n"
                     
                     resposta += f"Para eu criar a regra, ainda preciso das seguintes informações:\n\n{lista_faltando}\n\n"
                     resposta += "Me informe esses dados e eu crio a regra para você! 😊"

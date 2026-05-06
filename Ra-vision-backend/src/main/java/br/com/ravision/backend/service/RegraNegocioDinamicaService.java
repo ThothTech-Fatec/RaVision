@@ -6,19 +6,23 @@ import br.com.ravision.backend.dto.RegraNegocioRequest;
 import br.com.ravision.backend.dto.RegraNegocioResponse;
 import br.com.ravision.backend.repository.RegraNegocioDinamicaRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RegraNegocioDinamicaService {
 
     private final RegraNegocioDinamicaRepository repository;
     private final HistoricoService historicoService;
+    private final AplicadorRegrasSazonaisService aplicadorRegrasSazonaisService;
 
     @Transactional(readOnly = true)
     public List<RegraNegocioResponse> listarTodas() {
@@ -64,6 +68,9 @@ public class RegraNegocioDinamicaService {
         RegraNegocioDinamica regra = repository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Regra não encontrada"));
 
+        // Capturar o mês ANTES de alterar, pois o mês pode mudar na edição
+        String mesAntigo = regra.getMesCompetencia();
+
         regra.setDescricaoRegra(request.getDescricaoRegra());
         regra.setTipoRegra(request.getTipoRegra());
         regra.setMesCompetencia(request.getMesCompetencia());
@@ -72,28 +79,34 @@ public class RegraNegocioDinamicaService {
         regra.setStatusAprovacao(StatusAprovacao.PENDENTE); // Volta para pendente após edição
 
         RegraNegocioDinamica updated = repository.save(regra);
-        
+
         historicoService.registrarAcao(
                 getCurrentUser(),
                 "Regra Editada",
-                "Regra ID " + id + " editada e voltou para status PENDENTE"
+                "Regra ID " + id + " editada e voltou para status PENDENTE — recalculando comissões de " + mesAntigo
         );
-        
+
+        // Recalcular com base no mês original para reverter os efeitos que a regra tinha
+        dispararRecalculo(mesAntigo);
+
         return toResponse(updated);
     }
 
     @Transactional
     public void excluirRegra(Long id) {
-        if (!repository.existsById(id)) {
-            throw new RuntimeException("Regra não encontrada");
-        }
+        RegraNegocioDinamica regra = repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Regra não encontrada"));
+
+        String mesCompetencia = regra.getMesCompetencia();
         repository.deleteById(id);
-        
+
         historicoService.registrarAcao(
                 getCurrentUser(),
                 "Regra Excluída",
-                "Regra ID " + id + " excluída"
+                "Regra ID " + id + " excluída — recalculando comissões de " + mesCompetencia
         );
+
+        dispararRecalculo(mesCompetencia);
     }
 
     @Transactional
@@ -103,12 +116,14 @@ public class RegraNegocioDinamicaService {
 
         regra.setStatusAprovacao(StatusAprovacao.APROVADA);
         RegraNegocioDinamica updated = repository.save(regra);
-        
+
         historicoService.registrarAcao(
                 getCurrentUser(),
                 "Regra Aprovada",
-                "Regra ID " + id + " aprovada"
+                "Regra ID " + id + " aprovada — recalculando comissões de " + regra.getMesCompetencia()
         );
+
+        dispararRecalculo(regra.getMesCompetencia());
 
         return toResponse(updated);
     }
@@ -120,14 +135,36 @@ public class RegraNegocioDinamicaService {
 
         regra.setStatusAprovacao(StatusAprovacao.RECUSADA);
         RegraNegocioDinamica updated = repository.save(regra);
-        
+
         historicoService.registrarAcao(
                 getCurrentUser(),
                 "Regra Recusada",
-                "Regra ID " + id + " recusada"
+                "Regra ID " + id + " recusada — recalculando comissões de " + regra.getMesCompetencia()
         );
 
+        dispararRecalculo(regra.getMesCompetencia());
+
         return toResponse(updated);
+    }
+
+    /**
+     * Dispara o recálculo das comissões finais para o mês de competência da regra.
+     * O mesCompetencia está no formato "YYYY-MM" (ex: "2025-11").
+     * Concatenamos "-01" apenas para formar uma LocalDate válida como chave técnica de dateRef
+     * nos repositórios — o dia 01 não representa um registro real nas planilhas.
+     * Se a folha ainda não foi processada para aquele mês, loga um aviso e segue sem erros.
+     */
+    private void dispararRecalculo(String mesCompetencia) {
+        try {
+            LocalDate dateRef = LocalDate.parse(mesCompetencia + "-01");
+            log.info("Disparando recálculo de comissões sazonais para competência: {}", mesCompetencia);
+            aplicadorRegrasSazonaisService.aplicarRegrasSazonais(dateRef);
+            log.info("Recálculo de comissões concluído para competência: {}", mesCompetencia);
+        } catch (IllegalArgumentException e) {
+            log.warn("Recálculo ignorado para {}: folha ainda não processada ({})", mesCompetencia, e.getMessage());
+        } catch (Exception e) {
+            log.error("Erro inesperado ao recalcular comissões para competência {}", mesCompetencia, e);
+        }
     }
 
     private String getCurrentUser() {
