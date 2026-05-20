@@ -6,6 +6,7 @@ import ImportView from '@/views/ImportView.vue'
 import GerenciarRegrasView from '@/views/GerenciarRegrasView.vue'
 import ProfileView from '@/views/ProfileView.vue'
 import HistoricoView from '@/views/HistoricoView.vue'
+import BoardView from '@/views/BoardView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -49,6 +50,12 @@ const router = createRouter({
       path: '/historico',
       name: 'historico',
       component: HistoricoView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/board',
+      name: 'board',
+      component: BoardView,
       meta: { requiresAuth: true },
     },
   ],

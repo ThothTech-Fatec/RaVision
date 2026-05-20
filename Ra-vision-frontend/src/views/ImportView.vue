@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import ChatSidebar from '@/components/ChatSidebar.vue'
+import AppNav from '@/components/AppNav.vue'
 
 const sidebarOpen = ref(true)
 const router = useRouter()
@@ -156,10 +157,11 @@ function logout() {
         </div>
 
         <!-- Ações -->
-        <div class="flex items-center gap-1">
+        <div class="flex items-center gap-2">
+          <AppNav />
           <button
             @click="logout"
-            class="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+            class="p-2 ml-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
             title="Sair"
           >
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
