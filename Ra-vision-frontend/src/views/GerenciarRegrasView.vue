@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
+import AppNav from '@/components/AppNav.vue'
 
 // Interface de Simulação
 interface SimulacaoResponse {
@@ -330,11 +331,7 @@ function logout() {
       </div>
 
       <!-- Navegação Header -->
-      <div class="flex items-center gap-2 ml-2 pl-2 border-l border-slate-200">
-        <button @click="router.push('/chat')" class="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-semibold rounded-lg transition-colors border border-slate-200">Chat</button>
-        <button @click="router.push('/historico')" class="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-semibold rounded-lg transition-colors border border-slate-200">Histórico</button>
-        <button @click="router.push('/perfil')" class="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-semibold rounded-lg transition-colors border border-slate-200">Perfil</button>
-      </div>
+      <AppNav />
 
       <!-- Sair -->
       <button @click="logout" class="p-2 ml-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
