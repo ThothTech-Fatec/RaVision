@@ -7,6 +7,7 @@ import GerenciarRegrasView from '@/views/GerenciarRegrasView.vue'
 import ProfileView from '@/views/ProfileView.vue'
 import HistoricoView from '@/views/HistoricoView.vue'
 import BoardView from '@/views/BoardView.vue'
+import LojasView from '@/views/LojasView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -56,6 +57,12 @@ const router = createRouter({
       path: '/board',
       name: 'board',
       component: BoardView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/lojas',
+      name: 'lojas',
+      component: LojasView,
       meta: { requiresAuth: true },
     },
   ],

@@ -17,6 +17,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: 'Chat',      path: '/chat',      title: 'Assistente IA'          },
   { label: 'Importar',  path: '/importar',  title: 'Importação de dados'    },
+  { label: 'Lojas',     path: '/lojas',     title: 'Lojas e Equipes'        },
   { label: 'Regras',    path: '/regras',    title: 'Regras de negócio'      },
   { label: 'Histórico', path: '/historico', title: 'Histórico de execuções' },
   { label: 'Board',     path: '/board',     title: 'Dashboards'             },
@@ -54,6 +55,10 @@ function isActive(path: string) {
       <!-- Importar -->
       <svg v-else-if="item.path === '/importar'" class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+      </svg>
+      <!-- Lojas -->
+      <svg v-else-if="item.path === '/lojas'" class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
       </svg>
       <!-- Regras -->
       <svg v-else-if="item.path === '/regras'" class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

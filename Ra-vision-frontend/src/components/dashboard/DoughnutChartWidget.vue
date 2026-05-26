@@ -2,16 +2,14 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import {
   Chart,
-  BarController,
-  BarElement,
-  CategoryScale,
-  LinearScale,
+  DoughnutController,
+  ArcElement,
   Tooltip,
   Legend,
 } from 'chart.js'
 import type { ChartData } from '@/data/boardMockData'
 
-Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend)
+Chart.register(DoughnutController, ArcElement, Tooltip, Legend)
 
 const props = defineProps<{
   chartTitle: string
@@ -29,15 +27,14 @@ function buildChart() {
   }
 
   chartInstance = new Chart(canvasRef.value, {
-    type: 'bar',
+    type: 'doughnut',
     data: {
       labels: props.data.labels,
       datasets: props.data.datasets.map(ds => ({
         label: ds.label,
         data: ds.data,
         backgroundColor: ds.backgroundColor,
-        borderRadius: 2,
-        borderSkipped: false,
+        borderWidth: 1,
       })),
     },
     options: {
@@ -45,8 +42,7 @@ function buildChart() {
       maintainAspectRatio: false,
       plugins: {
         legend: {
-          position: 'top',
-          align: 'start',
+          position: 'right',
           labels: {
             boxWidth: 12,
             boxHeight: 12,
@@ -59,7 +55,7 @@ function buildChart() {
         },
         tooltip: {
           callbacks: {
-            title: (items) => items[0]?.label ?? '',
+            label: (item) => ` ${item.label}: ${item.raw}`,
           },
         },
         title: {
@@ -70,31 +66,7 @@ function buildChart() {
           padding: { bottom: 8 },
         },
       },
-      scales: {
-        x: {
-          stacked: true,
-          grid: { display: false },
-          ticks: { font: { size: 10 }, color: '#94a3b8' },
-          title: {
-            display: true,
-            text: 'Mês',
-            font: { size: 10 },
-            color: '#94a3b8',
-          },
-        },
-        y: {
-          stacked: true,
-          beginAtZero: true,
-          grid: { color: '#f1f5f9' },
-          ticks: { font: { size: 10 }, color: '#94a3b8', stepSize: 20 },
-          title: {
-            display: true,
-            text: 'Quantidade de SKUs',
-            font: { size: 10 },
-            color: '#94a3b8',
-          },
-        },
-      },
+      cutout: '65%',
     },
   })
 }
