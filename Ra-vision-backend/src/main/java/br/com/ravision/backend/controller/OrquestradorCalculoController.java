@@ -1,5 +1,7 @@
 package br.com.ravision.backend.controller;
 
+import br.com.ravision.backend.dto.RelatorioFolhaDTO;
+import br.com.ravision.backend.repository.ComissaoCalculadaFinalRepository;
 import br.com.ravision.backend.service.AplicadorRegrasSazonaisService;
 import br.com.ravision.backend.service.CalculoComissaoService;
 import br.com.ravision.backend.service.CalculoProporcionalService;
@@ -11,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 @Slf4j
 @RestController
@@ -22,6 +25,7 @@ public class OrquestradorCalculoController {
     private final CalculoComissaoService calculoComissaoService;
     private final CalculoProporcionalService calculoProporcionalService;
     private final AplicadorRegrasSazonaisService aplicadorRegrasSazonaisService;
+    private final ComissaoCalculadaFinalRepository comissaoFinalRepository;
 
     @PostMapping("/processar-folha")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'GESTOR_RH')")
@@ -48,6 +52,18 @@ public class OrquestradorCalculoController {
         } catch (Exception e) {
             log.error("Erro interno ao processar a folha", e);
             return ResponseEntity.internalServerError().body("Erro inesperado ao processar a folha: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/relatorio")
+    public ResponseEntity<List<RelatorioFolhaDTO>> getRelatorioFolha(@RequestParam("dateRef") String dateRefStr) {
+        try {
+            LocalDate dateRef = LocalDate.parse(dateRefStr, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            List<RelatorioFolhaDTO> relatorio = comissaoFinalRepository.findRelatorioByDateRef(dateRef);
+            return ResponseEntity.ok(relatorio);
+        } catch (Exception e) {
+            log.error("Erro ao buscar relatorio da folha: {}", e.getMessage());
+            return ResponseEntity.internalServerError().build();
         }
     }
 }

@@ -11,4 +11,7 @@ import java.util.List;
 public interface BaseRHRepository extends JpaRepository<BaseRH, Long> {
     void deleteByDateRef(LocalDate dateRef);
     List<BaseRH> findByDateRef(LocalDate dateRef);
+
+    @org.springframework.data.jpa.repository.Query("SELECT DISTINCT r.dateRef FROM BaseRH r ORDER BY r.dateRef DESC")
+    List<LocalDate> findDistinctDateRefs();
 }
