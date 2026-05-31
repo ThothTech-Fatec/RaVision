@@ -11,17 +11,20 @@ import WidgetPlaceholder from '@/components/dashboard/WidgetPlaceholder.vue'
 import NewTabModal from '@/components/dashboard/NewTabModal.vue'
 import AppNav from '@/components/AppNav.vue'
 import {
-  faturamentoVsComissoesData,
-  rankingMarcasData,
-  produtosMaisVendidosData,
-  rankingVendedoresColumns,
-  rankingVendedoresRows,
-  comissaoPorLojaData,
-  comissaoPorRegiaoData,
-  motivosProporcionalidadeData,
-  metricasIaData
-} from '@/data/boardMockData'
-import type { WidgetConfig } from '@/data/boardMockData'
+  getComissoesPorLoja,
+  getComissoesPorMarca,
+  getTotalComissaoGeral,
+  getKPIsExecutiva,
+  getHistoricoExecutiva,
+  getTopMarcas,
+  getRankingVendedores,
+  getProporcionalidadeRH,
+  getAnomaliasCadastroRH
+} from '@/services/dashboardService'
+import { buscarMetricasIA } from '@/services/monitoramentoIAService'
+
+import type { WidgetConfig, ChartData } from '@/types/dashboard'
+import { onMounted, watch } from 'vue'
 
 const router = useRouter()
 
@@ -47,7 +50,7 @@ const tabs = reactive<BoardTab[]>([
 
 const activeTabId = ref('executiva')
 
-const activeTab = computed(() => tabs.find(t => t.id === activeTabId.value) ?? tabs[0])
+const activeTab = computed<BoardTab>(() => tabs.find(t => t.id === activeTabId.value) || (tabs[0] as BoardTab))
 
 // --- New tab modal ---
 const newTabModalOpen = ref(false)
@@ -80,12 +83,15 @@ function openAddWidget() {
 
 function onSaveWidget(config: WidgetConfig) {
   const id = `widget_${Date.now()}`
-  activeTab.value.widgets.push({ id, config: { ...config, id } })
+  if (activeTab.value) {
+    activeTab.value.widgets.push({ id, config: { ...config, id } })
+  }
 }
 
 function deleteWidget(widgetId: string) {
-  const tab = activeTab.value
-  tab.widgets = tab.widgets.filter(w => w.id !== widgetId)
+  if (activeTab.value) {
+    activeTab.value.widgets = activeTab.value.widgets.filter(w => w.id !== widgetId)
+  }
 }
 
 function logout() {
@@ -94,6 +100,123 @@ function logout() {
   localStorage.removeItem('username')
   router.push('/')
 }
+
+// --- INTEGRAÇÃO COM BACKEND ---
+const now = new Date()
+const mesCompetenciaFiltro = ref('2025-09')
+const loadingDashboards = ref(false)
+
+// Executiva
+const executivaKPIs = ref({ faturamentoAtual: 0, comissoesAtuais: 0, custoComissaoPercentual: 0 })
+const historicoEvolucaoData = ref<ChartData>({ labels: [], datasets: [] })
+const topMarcasRows = ref<any[]>([])
+
+// Lojas
+const totalComissoesGeral = ref(0)
+const comissaoPorLojaData = ref<ChartData>({ labels: [], datasets: [] })
+const comissaoPorMarcaData = ref<ChartData>({ labels: [], datasets: [] })
+const rankingVendedoresRows = ref<any[]>([])
+const rankingVendedoresColumns = [
+  { key: 'rank', label: 'Posição' },
+  { key: 'nome', label: 'Vendedor' },
+  { key: 'loja', label: 'Loja' },
+  { key: 'comissao', label: 'Comissão (R$)' }
+]
+
+// RH
+const motivosProporcionalidadeData = ref<ChartData>({ labels: [], datasets: [] })
+const anomaliasSemLoja = ref(0)
+
+// IA
+const metricasIaKpis = ref({ totalRequisicoes: 0, tempoMedioGeralMs: 0 })
+const metricasIaData = ref<ChartData>({ labels: [], datasets: [] })
+
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
+}
+
+const carregarDashboards = async () => {
+  loadingDashboards.value = true
+
+  try {
+    const bgColors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#ef4444', '#14b8a6']
+
+    if (mesCompetenciaFiltro.value) {
+      const dateRef = `${mesCompetenciaFiltro.value}-01`
+
+    // Busca Executiva
+    const kpis = await getKPIsExecutiva(dateRef)
+    executivaKPIs.value = kpis
+    
+    const historico = await getHistoricoExecutiva(dateRef)
+    historicoEvolucaoData.value = {
+      labels: historico.map(h => h.mes.substring(0, 7)),
+      datasets: [
+        { label: 'Faturamento (R$)', data: historico.map(h => h.faturamento), backgroundColor: '#10b981' },
+        { label: 'Comissões (R$)', data: historico.map(h => h.comissoes), backgroundColor: '#ef4444' }
+      ]
+    }
+    
+    const marcasTop = await getTopMarcas(dateRef)
+    topMarcasRows.value = marcasTop.map((m, i) => ({
+      classLabel: `${i + 1}º ${m.chave}`,
+      value: formatCurrency(m.valor),
+      indicatorColor: bgColors[i % bgColors.length]
+    }))
+
+    // Busca Lojas
+    const totalGeral = await getTotalComissaoGeral(dateRef)
+    totalComissoesGeral.value = totalGeral.total
+
+    const lojas = await getComissoesPorLoja(dateRef)
+    comissaoPorLojaData.value = {
+      labels: lojas.map(item => item.chave),
+      datasets: [{ label: 'Comissão Paga (R$)', data: lojas.map(item => item.valor), backgroundColor: '#6366f1' }]
+    }
+
+    const marcas = await getComissoesPorMarca(dateRef)
+    comissaoPorMarcaData.value = {
+      labels: marcas.map(item => item.chave),
+      datasets: [{ label: 'Distribuição por Marca (R$)', data: marcas.map(item => item.valor), backgroundColor: bgColors.slice(0, marcas.length) }]
+    }
+
+    const ranking = await getRankingVendedores(dateRef)
+    rankingVendedoresRows.value = ranking.map((r, i) => ({
+      rank: i + 1,
+      nome: r.nome,
+      loja: r.loja,
+      comissao: formatCurrency(r.comissao)
+    }))
+
+    // Busca RH
+    const proporcionalidade = await getProporcionalidadeRH(dateRef)
+    motivosProporcionalidadeData.value = {
+      labels: proporcionalidade.map(p => p.chave),
+      datasets: [{ label: 'Motivos', data: proporcionalidade.map(p => p.valor), backgroundColor: bgColors.slice(0, proporcionalidade.length) }]
+    }
+    anomaliasSemLoja.value = await getAnomaliasCadastroRH(dateRef)
+
+    }
+
+    // Busca IA
+    const today = new Date()
+    const iaEndDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    const metricasIa = await buscarMetricasIA('2025-09-01', iaEndDate)
+    metricasIaKpis.value = { totalRequisicoes: metricasIa.totalRequisicoes, tempoMedioGeralMs: metricasIa.tempoMedioGeralMs }
+    metricasIaData.value = {
+      labels: metricasIa.estatisticasDiarias.map(d => d.data),
+      datasets: [{ label: 'Quantidade de Perguntas', data: metricasIa.estatisticasDiarias.map(d => d.quantidadePerguntas), borderColor: '#8b5cf6', backgroundColor: '#8b5cf6', tension: 0.4 }]
+    }
+
+  } catch (error) {
+    console.error("Erro ao carregar dashboards:", error)
+  } finally {
+    loadingDashboards.value = false
+  }
+}
+
+watch(mesCompetenciaFiltro, carregarDashboards)
+onMounted(carregarDashboards)
 </script>
 
 <template>
@@ -157,6 +280,20 @@ function logout() {
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
         </svg>
       </button>
+
+      <!-- Espaçador e Filtro de Competência Global -->
+      <div class="flex-1"></div>
+      
+      <!-- Filtro Global (Oculto na aba IA) -->
+      <div v-if="activeTabId !== 'ia'" class="flex items-center gap-2">
+        <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Competência:</label>
+        <input 
+          type="month" 
+          v-model="mesCompetenciaFiltro" 
+          class="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow"
+        />
+        <span v-if="loadingDashboards" class="text-indigo-500 animate-pulse text-xs ml-2">⏳ Atualizando...</span>
+      </div>
     </div>
 
     <!-- Main content -->
@@ -183,53 +320,45 @@ function logout() {
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center">
             <span class="text-sm font-semibold text-slate-500 mb-1">Faturamento Mês Atual</span>
-            <span class="text-3xl font-bold text-slate-800">R$ 1.350.000</span>
-            <span class="text-xs font-semibold text-emerald-500 mt-2 flex items-center gap-1">
-              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
-              12.5% vs Mês Anterior
+            <span class="text-3xl font-bold text-slate-800">{{ formatCurrency(executivaKPIs.faturamentoAtual) }}</span>
+            <span class="text-xs font-semibold text-slate-400 mt-2 flex items-center gap-1">
+              Refere-se ao mês selecionado
             </span>
           </div>
           <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center">
             <span class="text-sm font-semibold text-slate-500 mb-1">Comissões a Pagar</span>
-            <span class="text-3xl font-bold text-emerald-600">R$ 67.000</span>
-            <span class="text-xs font-semibold text-emerald-500 mt-2 flex items-center gap-1">
-              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
-              11.6% vs Mês Anterior
+            <span class="text-3xl font-bold text-emerald-600">{{ formatCurrency(executivaKPIs.comissoesAtuais) }}</span>
+            <span class="text-xs font-semibold text-slate-400 mt-2 flex items-center gap-1">
+              Refere-se ao mês selecionado
             </span>
           </div>
           <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center">
             <span class="text-sm font-semibold text-slate-500 mb-1">Custo Comissão vs Vendas</span>
-            <span class="text-3xl font-bold text-violet-600">4.96%</span>
-            <span class="text-xs font-semibold text-slate-400 mt-2">Dentro do teto (5.5%)</span>
+            <span class="text-3xl font-bold text-violet-600">{{ executivaKPIs.custoComissaoPercentual }}%</span>
+            <span class="text-xs font-semibold text-slate-400 mt-2">Gasto percentual da folha</span>
           </div>
         </div>
 
         <!-- Charts Row -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div class="lg:col-span-2">
-            <WidgetCard title="Evolução Histórica" class="h-full">
-              <BarChartWidget
-                chartTitle="Faturamento vs Comissões Pagas (Últimos 6 meses)"
-                :data="faturamentoVsComissoesData"
-              />
+            <WidgetCard title="Evolução Histórica" class="h-full relative">
+              <div v-if="historicoEvolucaoData.labels.length > 0" class="h-full">
+                <BarChartWidget
+                  chartTitle="Faturamento vs Comissões Pagas (Últimos 6 meses)"
+                  :data="historicoEvolucaoData"
+                />
+              </div>
+              <div v-else class="absolute inset-0 flex items-center justify-center text-slate-400 text-sm">
+                Sem histórico nos últimos 6 meses.
+              </div>
             </WidgetCard>
           </div>
 
           <div class="lg:col-span-1 flex flex-col gap-4">
-            <WidgetCard
-              v-for="table in rankingMarcasData"
-              :key="table.id"
-              :title="table.title"
-            >
-              <ClassTableWidget :rows="table.rows" />
-            </WidgetCard>
-            
-            <WidgetCard
-              v-for="table in produtosMaisVendidosData"
-              :key="table.id"
-              :title="table.title"
-            >
-              <ClassTableWidget :rows="table.rows" />
+            <WidgetCard title="Top Marcas por Faturamento">
+              <ClassTableWidget :rows="topMarcasRows" v-if="topMarcasRows.length > 0"/>
+              <div v-else class="p-4 text-center text-slate-400 text-sm">Sem dados.</div>
             </WidgetCard>
           </div>
         </div>
@@ -238,18 +367,28 @@ function logout() {
       <!-- Gestão de Lojas -->
       <template v-if="activeTabId === 'lojas' && activeTab.isDefault === undefined">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-          <WidgetCard title="Comissões por Loja" class="h-64 lg:h-80">
-            <BarChartWidget
-              chartTitle="Volume de Comissões por Loja"
-              :data="comissaoPorLojaData"
-            />
+          <WidgetCard title="Comissões por Loja" class="h-64 lg:h-80 relative">
+            <div v-if="comissaoPorLojaData.labels.length > 0" class="h-full">
+              <BarChartWidget
+                chartTitle="Volume de Comissões por Loja"
+                :data="comissaoPorLojaData"
+              />
+            </div>
+            <div v-else class="absolute inset-0 flex items-center justify-center text-slate-400 text-sm">
+              Sem dados de comissão para as lojas neste mês.
+            </div>
           </WidgetCard>
           
-          <WidgetCard title="Comissões por Região" class="h-64 lg:h-80">
-            <DoughnutChartWidget
-              chartTitle="Distribuição de Comissões por Região"
-              :data="comissaoPorRegiaoData"
-            />
+          <WidgetCard title="Comissões por Marca" class="h-64 lg:h-80 relative">
+            <div v-if="comissaoPorMarcaData.labels.length > 0" class="h-full">
+              <DoughnutChartWidget
+                chartTitle="Distribuição de Comissões por Marca"
+                :data="comissaoPorMarcaData"
+              />
+            </div>
+            <div v-else class="absolute inset-0 flex items-center justify-center text-slate-400 text-sm">
+              Sem dados de comissão para as marcas neste mês.
+            </div>
           </WidgetCard>
         </div>
 
@@ -265,18 +404,24 @@ function logout() {
       <template v-if="activeTabId === 'rh' && activeTab.isDefault === undefined">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div class="lg:col-span-1">
-            <WidgetCard title="Análise de Impacto na Folha" class="h-full">
-              <DoughnutChartWidget
-                chartTitle="Motivos de Proporcionalidade (Descontos)"
-                :data="motivosProporcionalidadeData"
-              />
+            <WidgetCard title="Análise de Impacto na Folha" class="h-full relative">
+              <div v-if="motivosProporcionalidadeData.labels.length > 0" class="h-full">
+                <DoughnutChartWidget
+                  chartTitle="Motivos de Proporcionalidade (Descontos)"
+                  :data="motivosProporcionalidadeData"
+                />
+              </div>
+              <div v-else class="absolute inset-0 flex items-center justify-center text-slate-400 text-sm">
+                Sem dados de intercorrências.
+              </div>
             </WidgetCard>
           </div>
           <div class="lg:col-span-1 bg-white rounded-2xl border border-slate-200 p-6 flex flex-col items-center justify-center text-center">
              <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
                <svg class="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
              </div>
-             <h3 class="text-lg font-bold text-slate-800">12 Funcionários sem Cadastro de Loja</h3>
+             <h3 class="text-lg font-bold text-slate-800" v-if="anomaliasSemLoja > 0">{{ anomaliasSemLoja }} Funcionários sem Cadastro de Loja</h3>
+             <h3 class="text-lg font-bold text-emerald-600" v-else>Nenhum erro de cadastro de Loja</h3>
              <p class="text-sm text-slate-500 mt-2">Corrija o cadastro base para que eles recebam comissão da loja corretamente.</p>
              <button class="mt-4 px-4 py-2 bg-indigo-50 text-indigo-600 font-semibold rounded-lg hover:bg-indigo-100 transition-colors">Acessar Importação Base RH</button>
           </div>
@@ -288,22 +433,27 @@ function logout() {
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center text-center">
             <span class="text-sm font-semibold text-slate-500 mb-1">Total de Perguntas à IA</span>
-            <span class="text-4xl font-bold text-violet-600">950</span>
-            <span class="text-xs font-semibold text-emerald-500 mt-2">Nesta semana</span>
+            <span class="text-4xl font-bold text-violet-600">{{ metricasIaKpis.totalRequisicoes }}</span>
+            <span class="text-xs font-semibold text-slate-400 mt-2">No período</span>
           </div>
           <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center text-center">
             <span class="text-sm font-semibold text-slate-500 mb-1">Média de Velocidade de Resposta</span>
-            <span class="text-4xl font-bold text-indigo-600">1.2s</span>
+            <span class="text-4xl font-bold text-indigo-600">{{ metricasIaKpis.tempoMedioGeralMs }}ms</span>
             <span class="text-xs font-semibold text-slate-400 mt-2">Latência do LLM</span>
           </div>
         </div>
 
         <div class="grid grid-cols-1 gap-4">
-          <WidgetCard title="Uso Semanal do Assistente" class="h-80">
-            <BarChartWidget
-              chartTitle="Perguntas por Dia da Semana"
-              :data="metricasIaData"
-            />
+          <WidgetCard title="Uso Mensal do Assistente" class="h-80 relative">
+            <div v-if="metricasIaData.labels.length > 0" class="h-full">
+              <BarChartWidget
+                chartTitle="Perguntas por Dia"
+                :data="metricasIaData"
+              />
+            </div>
+            <div v-else class="absolute inset-0 flex items-center justify-center text-slate-400 text-sm">
+              Sem dados de IA.
+            </div>
           </WidgetCard>
         </div>
       </template>

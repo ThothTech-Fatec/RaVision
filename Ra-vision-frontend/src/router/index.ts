@@ -8,6 +8,8 @@ import ProfileView from '@/views/ProfileView.vue'
 import HistoricoView from '@/views/HistoricoView.vue'
 import BoardView from '@/views/BoardView.vue'
 import LojasView from '@/views/LojasView.vue'
+import AnomaliaView from '@/views/AnomaliaView.vue'
+
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -65,6 +67,13 @@ const router = createRouter({
       component: LojasView,
       meta: { requiresAuth: true },
     },
+    {
+      path: '/anomalias',
+      name: 'anomalias',
+      component: AnomaliaView,
+      meta: { requiresAuth: true },
+    },
+
   ],
 })
 
@@ -81,6 +90,14 @@ router.beforeEach((to, _from, next) => {
   if (to.meta.requiredRole && role !== to.meta.requiredRole) {
     next({ name: 'chat' })
     return
+  }
+
+  if (to.meta.requiredRoles) {
+    const roles = to.meta.requiredRoles as string[]
+    if (!role || !roles.includes(role)) {
+      next({ name: 'chat' })
+      return
+    }
   }
 
   // Se já está logado e tenta acessar o login, redireciona

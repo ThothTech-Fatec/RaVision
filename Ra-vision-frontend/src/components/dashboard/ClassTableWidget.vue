@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ClassificationRow } from '@/data/boardMockData'
+import type { ClassificationRow } from '@/types/dashboard'
 
 defineProps<{
   rows: ClassificationRow[]
@@ -18,15 +18,16 @@ defineProps<{
       <tbody>
         <tr
           v-for="row in rows"
-          :key="row.classificacao"
+          :key="row.classLabel"
           class="border-b border-slate-50 hover:bg-slate-50 transition-colors"
         >
-          <td class="py-2 pr-4 text-slate-700">{{ row.classificacao }}</td>
+          <td class="py-2 pr-4 text-slate-700">
+            <span v-if="row.indicatorColor" class="inline-block w-2 h-2 rounded-full mr-2" :style="{ backgroundColor: row.indicatorColor }"></span>
+            {{ row.classLabel }}
+          </td>
           <td class="py-2 text-right">
-            <span
-              :class="row.isClickable ? 'text-indigo-600 font-medium cursor-pointer hover:underline' : 'text-slate-700'"
-            >
-              {{ row.total }}
+            <span class="text-slate-700 font-medium">
+              {{ row.value }}
             </span>
           </td>
         </tr>

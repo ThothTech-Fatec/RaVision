@@ -7,7 +7,7 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js'
-import type { ChartData } from '@/data/boardMockData'
+import type { ChartData } from '@/types/dashboard'
 
 Chart.register(DoughnutController, ArcElement, Tooltip, Legend)
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DataTableColumn, DataTableRow } from '@/data/boardMockData'
+import type { DataTableColumn, DataTableRow } from '@/types/dashboard'
 
 defineProps<{
   columns: DataTableColumn[]

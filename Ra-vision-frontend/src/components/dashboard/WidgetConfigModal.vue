@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import type { WidgetConfig } from '@/data/boardMockData'
+import type { WidgetConfig } from '@/types/dashboard'
 
 const props = defineProps<{
   modelValue: boolean
