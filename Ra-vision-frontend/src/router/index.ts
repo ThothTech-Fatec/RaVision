@@ -9,6 +9,7 @@ import HistoricoView from '@/views/HistoricoView.vue'
 import BoardView from '@/views/BoardView.vue'
 import LojasView from '@/views/LojasView.vue'
 import AnomaliaView from '@/views/AnomaliaView.vue'
+import ErrosImportacaoView from '@/views/ErrosImportacaoView.vue'
 
 
 const router = createRouter({
@@ -73,7 +74,12 @@ const router = createRouter({
       component: AnomaliaView,
       meta: { requiresAuth: true },
     },
-
+    {
+      path: '/erros-importacao',
+      name: 'erros-importacao',
+      component: ErrosImportacaoView,
+      meta: { requiresAuth: true, requiredRole: 'ADMINISTRADOR' },
+    },
   ],
 })
 

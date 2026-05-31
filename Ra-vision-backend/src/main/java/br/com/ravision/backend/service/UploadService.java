@@ -3,12 +3,16 @@ package br.com.ravision.backend.service;
 import br.com.ravision.backend.domain.BaseComissionamento;
 import br.com.ravision.backend.domain.BaseRH;
 import br.com.ravision.backend.domain.BaseVendas;
+import br.com.ravision.backend.domain.TipoErro;
+import br.com.ravision.backend.dto.ErroImportacaoDTO;
 import br.com.ravision.backend.repository.BaseComissionamentoRepository;
 import br.com.ravision.backend.repository.BaseRHRepository;
 import br.com.ravision.backend.repository.BaseVendasRepository;
+
 import com.opencsv.CSVReader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -29,6 +33,7 @@ public class UploadService {
     private final BaseRHRepository rhRepository;
     private final BaseVendasRepository vendasRepository;
     private final BaseComissionamentoRepository comissaoRepository;
+    private final ErroImportacaoService erroImportacaoService;
 
     @Transactional
     public void processarLote(MultipartFile fileRH, MultipartFile fileVendas, MultipartFile fileComissoes) throws Exception {
@@ -52,7 +57,9 @@ public class UploadService {
         }
 
         rhRepository.deleteByDateRef(dataRefRH);
-        vendasRepository.deleteByDateRef(dataRefRH);
+        
+        LocalDate endDate = dataRefRH.withDayOfMonth(dataRefRH.lengthOfMonth());
+        vendasRepository.deleteByDateRefBetween(dataRefRH.withDayOfMonth(1), endDate);
         comissaoRepository.deleteAll();
 
         rhRepository.saveAll(listaRH);
@@ -95,9 +102,23 @@ public class UploadService {
             try {
                 return LocalDate.parse(val, DateTimeFormatter.ofPattern("dd/MM/yyyy"));
             } catch (Exception ex) {
-                return LocalDate.now();
+                return null;
             }
         }
+    }
+
+    private void salvarErro(String nomeArquivo, Integer linha, String mensagem, TipoErro tipo) {
+        String usuario = "SISTEMA";
+        if (SecurityContextHolder.getContext().getAuthentication() != null) {
+            usuario = SecurityContextHolder.getContext().getAuthentication().getName();
+        }
+        erroImportacaoService.salvarErro(ErroImportacaoDTO.builder()
+                .nomeArquivo(nomeArquivo)
+                .linha(linha)
+                .mensagemErro(mensagem)
+                .tipoErro(tipo)
+                .usuarioUpload(usuario)
+                .build());
     }
 
     private List<BaseRH> parseRH(MultipartFile file) throws Exception {
@@ -106,26 +127,38 @@ public class UploadService {
             List<String[]> lines = reader.readAll();
             for (int i = 1; i < lines.size(); i++) {
                 String[] data = lines.get(i);
-                
-                // Tratar se abrir usando vírgula ou ponto-e-vírgula
-                if (data.length == 1 && data[0].contains(";")) {
-                    data = data[0].split(";");
+                try {
+                    if (data.length == 1 && data[0].contains(";")) {
+                        data = data[0].split(";");
+                    }
+                    
+                    if (data.length < 10) {
+                        salvarErro(file.getOriginalFilename(), i + 1, "Linha incompleta (menos de 10 colunas)", TipoErro.STRUCTURAL_ERROR);
+                        continue;
+                    }
+                    
+                    BaseRH rh = new BaseRH();
+                    rh.setDateRef(parseDateStr(data[0]));
+                    rh.setCodMarca(Integer.parseInt(data[1].trim()));
+                    rh.setDescrMarca(data[2].trim());
+                    rh.setCodLoja(Integer.parseInt(data[3].trim()));
+                    rh.setDescrLoja(data[4].trim());
+                    
+                    String matricula = data[5].trim();
+                    if (matricula.isEmpty()) {
+                        salvarErro(file.getOriginalFilename(), i + 1, "Matrícula ausente", TipoErro.MISSING_DATA);
+                        continue;
+                    }
+                    rh.setMatricula(matricula);
+                    
+                    rh.setDataAdmissao(parseDateStr(data[6]));
+                    rh.setDataDemissao(parseDateStr(data[7]));
+                    rh.setCodCargo(Integer.parseInt(data[8].trim()));
+                    rh.setDescrCargo(data[9].trim());
+                    result.add(rh);
+                } catch (Exception ex) {
+                    salvarErro(file.getOriginalFilename(), i + 1, "Erro ao processar linha: " + ex.getMessage(), TipoErro.FORMAT_ERROR);
                 }
-                
-                if (data.length < 10) continue;
-                
-                BaseRH rh = new BaseRH();
-                rh.setDateRef(parseDateStr(data[0]));
-                rh.setCodMarca(Integer.parseInt(data[1].trim()));
-                rh.setDescrMarca(data[2].trim());
-                rh.setCodLoja(Integer.parseInt(data[3].trim()));
-                rh.setDescrLoja(data[4].trim());
-                rh.setMatricula(data[5].trim());
-                rh.setDataAdmissao(parseDateStr(data[6]));
-                rh.setDataDemissao(parseDateStr(data[7]));
-                rh.setCodCargo(Integer.parseInt(data[8].trim()));
-                rh.setDescrCargo(data[9].trim());
-                result.add(rh);
             }
         }
         return result;
@@ -137,23 +170,36 @@ public class UploadService {
             List<String[]> lines = reader.readAll();
             for (int i = 1; i < lines.size(); i++) {
                 String[] data = lines.get(i);
-                
-                if (data.length == 1 && data[0].contains(";")) {
-                    data = data[0].split(";");
-                }
-                
-                if (data.length < 7) continue;
+                try {
+                    if (data.length == 1 && data[0].contains(";")) {
+                        data = data[0].split(";");
+                    }
+                    
+                    if (data.length < 7) {
+                        salvarErro(file.getOriginalFilename(), i + 1, "Linha incompleta (menos de 7 colunas)", TipoErro.STRUCTURAL_ERROR);
+                        continue;
+                    }
 
-                BaseVendas v = new BaseVendas();
-                v.setDateRef(parseDateStr(data[0]));
-                v.setCodMarca(Integer.parseInt(data[1].trim()));
-                v.setDescrMarca(data[2].trim());
-                v.setCodLoja(Integer.parseInt(data[3].trim()));
-                v.setDescrLoja(data[4].trim());
-                v.setMatricula(data[5].trim());
-                String valorNormalizado = data[6].replace("\"", "").replace(",", ".");
-                v.setVlrVenda(new BigDecimal(valorNormalizado));
-                result.add(v);
+                    BaseVendas v = new BaseVendas();
+                    v.setDateRef(parseDateStr(data[0]));
+                    v.setCodMarca(Integer.parseInt(data[1].trim()));
+                    v.setDescrMarca(data[2].trim());
+                    v.setCodLoja(Integer.parseInt(data[3].trim()));
+                    v.setDescrLoja(data[4].trim());
+                    v.setMatricula(data[5].trim());
+                    String valorNormalizado = data[6].replace("\"", "").replace(",", ".");
+                    
+                    BigDecimal valor = new BigDecimal(valorNormalizado);
+                    if (valor.compareTo(BigDecimal.ZERO) < 0) {
+                        salvarErro(file.getOriginalFilename(), i + 1, "Valor de venda negativo não permitido", TipoErro.INVALID_VALUE);
+                        continue;
+                    }
+                    v.setVlrVenda(valor);
+                    
+                    result.add(v);
+                } catch (Exception ex) {
+                    salvarErro(file.getOriginalFilename(), i + 1, "Erro ao processar linha: " + ex.getMessage(), TipoErro.FORMAT_ERROR);
+                }
             }
         }
         return result;
@@ -165,21 +211,27 @@ public class UploadService {
             List<String[]> lines = reader.readAll();
             for (int i = 1; i < lines.size(); i++) {
                 String[] data = lines.get(i);
-                
-                if (data.length == 1 && data[0].contains(";")) {
-                    data = data[0].split(";");
-                }
-                
-                if (data.length < 5) continue;
+                try {
+                    if (data.length == 1 && data[0].contains(";")) {
+                        data = data[0].split(";");
+                    }
+                    
+                    if (data.length < 5) {
+                        salvarErro(file.getOriginalFilename(), i + 1, "Linha incompleta (menos de 5 colunas)", TipoErro.STRUCTURAL_ERROR);
+                        continue;
+                    }
 
-                BaseComissionamento c = new BaseComissionamento();
-                c.setCodMarca(Integer.parseInt(data[0].trim()));
-                c.setDescrMarca(data[1].trim());
-                c.setCodCargo(Integer.parseInt(data[2].trim()));
-                c.setDescriCargo(data[3].trim());
-                String percentualNormal = data[4].replace("\"", "").replace("%", "").replace(",", ".");
-                c.setPercentualComissao(new BigDecimal(percentualNormal));
-                result.add(c);
+                    BaseComissionamento c = new BaseComissionamento();
+                    c.setCodMarca(Integer.parseInt(data[0].trim()));
+                    c.setDescrMarca(data[1].trim());
+                    c.setCodCargo(Integer.parseInt(data[2].trim()));
+                    c.setDescriCargo(data[3].trim());
+                    String percentualNormal = data[4].replace("\"", "").replace("%", "").replace(",", ".");
+                    c.setPercentualComissao(new BigDecimal(percentualNormal));
+                    result.add(c);
+                } catch (Exception ex) {
+                    salvarErro(file.getOriginalFilename(), i + 1, "Erro ao processar linha: " + ex.getMessage(), TipoErro.FORMAT_ERROR);
+                }
             }
         }
         return result;
