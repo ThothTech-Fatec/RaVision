@@ -25,6 +25,9 @@ interface LojaAgrupada {
   codMarca: number
   descrMarca: string
   funcionarios: Funcionario[]
+  totalFuncionarios: number
+  totalAtivos: number
+  totalDesligados: number
 }
 
 const mesesDisponiveis = ref<string[]>([])
@@ -84,10 +87,20 @@ const loadFuncionarios = async () => {
           descrLoja: func.descrLoja,
           codMarca: func.codMarca,
           descrMarca: func.descrMarca,
-          funcionarios: []
+          funcionarios: [],
+          totalFuncionarios: 0,
+          totalAtivos: 0,
+          totalDesligados: 0
         })
       }
-      map.get(func.codLoja)?.funcionarios.push(func)
+      const loja = map.get(func.codLoja)!
+      loja.funcionarios.push(func)
+      loja.totalFuncionarios++
+      if (func.dataDemissao) {
+        loja.totalDesligados++
+      } else {
+        loja.totalAtivos++
+      }
     })
 
     lojas.value = Array.from(map.values()).sort((a, b) => a.descrLoja.localeCompare(b.descrLoja))
@@ -120,6 +133,44 @@ const toggleLoja = (codLoja: number) => {
     expandedLojas.value.delete(codLoja)
   } else {
     expandedLojas.value.add(codLoja)
+  }
+}
+
+const filterAtivos = ref(false)
+
+const getIniciais = (nomeOuMatricula: string) => {
+  if (!nomeOuMatricula) return 'U'
+  const parts = nomeOuMatricula.replace('MATRIC-', '').split('-')
+  const p1 = parts[0] || ''
+  const p2 = parts[1] || ''
+  if (parts.length > 1 && p1 && p2) {
+    return p1.charAt(0).toUpperCase() + p2.charAt(0).toUpperCase()
+  }
+  return p1.substring(0, 2).toUpperCase()
+}
+
+const calcularTempoCasa = (dataAdmissao: string, dataDemissao?: string | null) => {
+  if (!dataAdmissao) return '-'
+  const admissao = new Date(dataAdmissao)
+  if (isNaN(admissao.getTime())) return '-'
+  
+  const fim = dataDemissao ? new Date(dataDemissao) : new Date()
+  if (isNaN(fim.getTime())) return '-'
+  
+  let anos = fim.getFullYear() - admissao.getFullYear()
+  let meses = fim.getMonth() - admissao.getMonth()
+  
+  if (meses < 0 || (meses === 0 && fim.getDate() < admissao.getDate())) {
+    anos--
+    meses += 12
+  }
+  
+  if (anos > 0) {
+    return `${anos} ano${anos > 1 ? 's' : ''}${meses > 0 ? ` e ${meses} mês${meses > 1 ? 'es' : ''}` : ''}`
+  } else if (meses > 0) {
+    return `${meses} mês${meses > 1 ? 'es' : ''}`
+  } else {
+    return 'Menos de 1 mês'
   }
 }
 </script>
@@ -174,7 +225,16 @@ const toggleLoja = (codLoja: number) => {
             />
           </div>
           
-          <div class="text-xs text-slate-500 font-medium shrink-0">
+          <!-- Toggle Ativos -->
+          <label class="flex items-center gap-2 cursor-pointer shrink-0">
+            <div class="relative">
+              <input type="checkbox" v-model="filterAtivos" class="sr-only peer">
+              <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+            </div>
+            <span class="text-xs font-medium text-slate-600">Ocultar Desligados</span>
+          </label>
+          
+          <div class="text-xs text-slate-500 font-medium shrink-0 ml-auto">
             Total de Lojas: <span class="text-indigo-600 font-bold">{{ filteredLojas.length }}</span>
           </div>
         </div>
@@ -216,9 +276,21 @@ const toggleLoja = (codLoja: number) => {
                 </div>
               </div>
               <div class="flex items-center gap-4">
-                <span class="px-2.5 py-1 bg-slate-100 text-slate-600 text-xs font-semibold rounded-full border border-slate-200">
-                  {{ loja.funcionarios.length }} Funcionários
-                </span>
+                <div class="flex flex-col items-end mr-4">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-xs font-bold text-slate-700">HC: {{ loja.totalFuncionarios }}</span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600 border border-emerald-100 font-semibold" title="Ativos">
+                      {{ loja.totalAtivos }}
+                    </span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-red-50 text-red-600 border border-red-100 font-semibold" title="Desligados" v-if="loja.totalDesligados > 0">
+                      {{ loja.totalDesligados }}
+                    </span>
+                  </div>
+                  <div class="w-32 h-1.5 bg-slate-100 rounded-full overflow-hidden flex">
+                    <div class="h-full bg-emerald-500" :style="`width: ${(loja.totalAtivos / loja.totalFuncionarios) * 100}%`"></div>
+                    <div class="h-full bg-red-500" :style="`width: ${(loja.totalDesligados / loja.totalFuncionarios) * 100}%`"></div>
+                  </div>
+                </div>
                 <svg 
                   class="w-5 h-5 text-slate-400 transition-transform duration-200" 
                   :class="{ 'rotate-180': expandedLojas.has(loja.codLoja) }"
@@ -235,25 +307,44 @@ const toggleLoja = (codLoja: number) => {
                 <table class="w-full text-left text-sm whitespace-nowrap">
                   <thead class="bg-slate-50 text-slate-600 border-b border-slate-200 text-xs uppercase tracking-wider">
                     <tr>
-                      <th class="px-4 py-3 font-semibold">Matrícula</th>
+                      <th class="px-4 py-3 font-semibold">Funcionário</th>
                       <th class="px-4 py-3 font-semibold">Cargo</th>
-                      <th class="px-4 py-3 font-semibold text-center">Admissão</th>
-                      <th class="px-4 py-3 font-semibold text-center">Demissão</th>
+                      <th class="px-4 py-3 font-semibold text-center">Tempo de Empresa</th>
+                      <th class="px-4 py-3 font-semibold text-center">Status</th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-slate-100">
-                    <tr v-for="func in loja.funcionarios" :key="func.id" class="hover:bg-slate-50/50">
-                      <td class="px-4 py-3 font-medium text-indigo-700 font-mono text-xs">{{ func.matricula }}</td>
-                      <td class="px-4 py-3">
-                        <div class="text-slate-800 font-medium">{{ func.descrCargo }}</div>
-                        <div class="text-xs text-slate-400">Cod: {{ func.codCargo }}</div>
-                      </td>
-                      <td class="px-4 py-3 text-center text-slate-600 text-xs">{{ formatDate(func.dataAdmissao) }}</td>
-                      <td class="px-4 py-3 text-center text-xs">
-                        <span v-if="func.dataDemissao" class="text-red-600 font-medium">{{ formatDate(func.dataDemissao) }}</span>
-                        <span v-else class="text-emerald-600 font-medium bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">Ativo</span>
-                      </td>
-                    </tr>
+                    <template v-for="func in loja.funcionarios" :key="func.id">
+                      <tr v-if="!filterAtivos || !func.dataDemissao" class="hover:bg-slate-50/50 transition-colors">
+                        <td class="px-4 py-3">
+                          <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold shadow-sm border border-indigo-200">
+                              {{ getIniciais(func.matricula) }}
+                            </div>
+                            <div class="font-medium text-slate-800 font-mono text-xs">
+                              {{ func.matricula }}
+                            </div>
+                          </div>
+                        </td>
+                        <td class="px-4 py-3">
+                          <div class="text-slate-800 font-medium text-sm">{{ func.descrCargo }}</div>
+                          <div class="text-[10px] font-mono text-slate-400 mt-0.5">Cod: {{ func.codCargo }}</div>
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                          <div class="text-slate-700 font-medium text-sm">{{ calcularTempoCasa(func.dataAdmissao, func.dataDemissao) }}</div>
+                          <div class="text-[10px] text-slate-400 mt-0.5">Desde {{ formatDate(func.dataAdmissao) }}</div>
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                          <div v-if="func.dataDemissao" class="inline-flex flex-col items-center">
+                            <span class="bg-red-50 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded border border-red-100">DESLIGADO</span>
+                            <span class="text-[10px] text-slate-500 mt-1">em {{ formatDate(func.dataDemissao) }}</span>
+                          </div>
+                          <div v-else class="inline-flex">
+                            <span class="bg-emerald-50 text-emerald-600 text-[10px] font-bold px-2 py-0.5 rounded border border-emerald-100">ATIVO</span>
+                          </div>
+                        </td>
+                      </tr>
+                    </template>
                   </tbody>
                 </table>
               </div>

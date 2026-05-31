@@ -31,6 +31,9 @@ class UploadServiceTest {
 
     @Mock
     private BaseComissionamentoRepository comissaoRepository;
+    
+    @Mock
+    private ErroImportacaoService erroImportacaoService;
 
     private MockMultipartFile fileRH;
     private MockMultipartFile fileVendas;

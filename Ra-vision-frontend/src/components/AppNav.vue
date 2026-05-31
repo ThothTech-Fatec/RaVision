@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { erroImportacaoService } from '@/services/erroImportacaoService'
 
 const router = useRouter()
 const route = useRoute()
@@ -23,11 +24,38 @@ const navItems: NavItem[] = [
   { label: 'Lojas',     path: '/lojas',     title: 'Lojas e Equipes'        },
   { label: 'Regras',    path: '/regras',    title: 'Regras de negócio'      },
   { label: 'Anomalias', path: '/anomalias', title: 'Auditoria de Anomalias' },
+  { label: 'Erros',     path: '/erros-importacao', title: 'Erros de Importação', adminOnly: true },
   { label: 'Histórico', path: '/historico', title: 'Histórico de execuções' },
   { label: 'Board',     path: '/board',     title: 'Dashboards'             },
   { label: 'Perfil',    path: '/perfil',    title: 'Meu perfil'             },
   { label: 'Cadastro',  path: '/cadastro',  title: 'Cadastrar usuário', adminOnly: true },
 ]
+
+const errosPendentesCount = ref(0)
+
+const fetchErrosCount = async () => {
+  if (isAdmin) {
+    try {
+      errosPendentesCount.value = await erroImportacaoService.contarErrosPendentes()
+    } catch (e) {
+      console.error('Failed to fetch erros count', e)
+    }
+  }
+}
+
+let intervalId: number | null = null
+
+onMounted(() => {
+  fetchErrosCount()
+  window.addEventListener('import-error-resolved', fetchErrosCount)
+  // Polling every 30 seconds
+  intervalId = window.setInterval(fetchErrosCount, 30000)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('import-error-resolved', fetchErrosCount)
+  if (intervalId) clearInterval(intervalId)
+})
 
 const visibleItems = computed(() =>
   navItems.filter(item => {
@@ -50,12 +78,18 @@ function isActive(path: string) {
       @click="router.push(item.path)"
       :title="item.title"
       :class="[
-        'flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors border shrink-0',
+        'relative flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors border shrink-0',
         isActive(item.path)
           ? 'bg-indigo-50 text-indigo-600 border-indigo-200'
           : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100 hover:text-slate-700',
       ]"
     >
+      <!-- Badge para Erros -->
+      <div v-if="item.path === '/erros-importacao' && errosPendentesCount > 0" class="absolute -top-1 -right-1 flex h-3 w-3">
+        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+        <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+      </div>
+
       <!-- Chat -->
       <svg v-if="item.path === '/chat'" class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -74,6 +108,10 @@ function isActive(path: string) {
       </svg>
       <!-- Anomalias -->
       <svg v-else-if="item.path === '/anomalias'" class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      </svg>
+      <!-- Erros Importacao -->
+      <svg v-else-if="item.path === '/erros-importacao'" class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
       </svg>
       <!-- Histórico -->

@@ -58,7 +58,9 @@ public class DashboardService {
 
     public ExecutivaKPIsDTO getKPIsExecutiva(LocalDate mesCompetencia) {
         log.info("Buscando KPIs Executiva para a competência: {}", mesCompetencia);
-        BigDecimal faturamento = baseVendasRepository.sumarizarFaturamentoGeral(mesCompetencia);
+        LocalDate startDate = mesCompetencia.withDayOfMonth(1);
+        LocalDate endDate = mesCompetencia.withDayOfMonth(mesCompetencia.lengthOfMonth());
+        BigDecimal faturamento = baseVendasRepository.sumarizarFaturamentoGeral(startDate, endDate);
         BigDecimal comissoes = comissaoRepository.sumarizarComissaoGeral(mesCompetencia);
         
         if (faturamento == null) faturamento = BigDecimal.ZERO;
@@ -79,20 +81,31 @@ public class DashboardService {
         List<HistoricoEvolucaoDTO> faturamento = baseVendasRepository.historicoFaturamento(startDate, endDate);
         List<HistoricoEvolucaoDTO> comissoes = comissaoRepository.historicoComissoes(startDate, endDate);
         
-        // Merge the two lists by dateRef
-        for (HistoricoEvolucaoDTO fat : faturamento) {
-            for (HistoricoEvolucaoDTO com : comissoes) {
-                if (fat.getMes().equals(com.getMes())) {
-                    fat.setComissoes(com.getComissoes());
-                    break;
-                }
-            }
+        java.util.Map<LocalDate, HistoricoEvolucaoDTO> grouped = new java.util.TreeMap<>();
+        
+        for (HistoricoEvolucaoDTO f : faturamento) {
+            LocalDate month = f.getMes().withDayOfMonth(1);
+            HistoricoEvolucaoDTO dto = grouped.computeIfAbsent(month, k -> new HistoricoEvolucaoDTO(k, java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO));
+            java.math.BigDecimal current = dto.getFaturamento() != null ? dto.getFaturamento() : java.math.BigDecimal.ZERO;
+            java.math.BigDecimal add = f.getFaturamento() != null ? f.getFaturamento() : java.math.BigDecimal.ZERO;
+            dto.setFaturamento(current.add(add));
         }
-        return faturamento;
+        
+        for (HistoricoEvolucaoDTO c : comissoes) {
+            LocalDate month = c.getMes().withDayOfMonth(1);
+            HistoricoEvolucaoDTO dto = grouped.computeIfAbsent(month, k -> new HistoricoEvolucaoDTO(k, java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO));
+            java.math.BigDecimal current = dto.getComissoes() != null ? dto.getComissoes() : java.math.BigDecimal.ZERO;
+            java.math.BigDecimal add = c.getComissoes() != null ? c.getComissoes() : java.math.BigDecimal.ZERO;
+            dto.setComissoes(current.add(add));
+        }
+        
+        return new java.util.ArrayList<>(grouped.values());
     }
 
     public List<DashboardAgregacaoDTO> getTopMarcas(LocalDate mesCompetencia) {
-        return baseVendasRepository.sumarizarFaturamentoPorMarca(mesCompetencia);
+        LocalDate startDate = mesCompetencia.withDayOfMonth(1);
+        LocalDate endDate = mesCompetencia.withDayOfMonth(mesCompetencia.lengthOfMonth());
+        return baseVendasRepository.sumarizarFaturamentoPorMarca(startDate, endDate);
     }
 
     public List<RankingVendedorDTO> getRankingVendedores(LocalDate mesCompetencia) {

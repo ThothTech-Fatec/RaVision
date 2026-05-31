@@ -128,7 +128,7 @@ class DashboardServiceTest {
 
     @Test
     void getKPIsExecutiva_deveRetornarDadosCorretos() {
-        when(baseVendasRepository.sumarizarFaturamentoGeral(dataRef)).thenReturn(new BigDecimal("100000.00"));
+        when(baseVendasRepository.sumarizarFaturamentoGeral(dataRef.withDayOfMonth(1), dataRef.withDayOfMonth(dataRef.lengthOfMonth()))).thenReturn(new BigDecimal("100000.00"));
         when(comissaoRepository.sumarizarComissaoGeral(dataRef)).thenReturn(new BigDecimal("5000.00"));
 
         ExecutivaKPIsDTO result = dashboardService.getKPIsExecutiva(dataRef);
