@@ -7,11 +7,14 @@ const route = useRoute()
 
 const isAdmin = localStorage.getItem('role') === 'ADMINISTRADOR'
 
+const isCTO = localStorage.getItem('role') === 'CTO'
+
 interface NavItem {
   label: string
   path: string
   title: string
   adminOnly?: boolean
+  monitoramentoAuth?: boolean
 }
 
 const navItems: NavItem[] = [
@@ -19,6 +22,7 @@ const navItems: NavItem[] = [
   { label: 'Importar',  path: '/importar',  title: 'Importação de dados'    },
   { label: 'Lojas',     path: '/lojas',     title: 'Lojas e Equipes'        },
   { label: 'Regras',    path: '/regras',    title: 'Regras de negócio'      },
+  { label: 'Anomalias', path: '/anomalias', title: 'Auditoria de Anomalias' },
   { label: 'Histórico', path: '/historico', title: 'Histórico de execuções' },
   { label: 'Board',     path: '/board',     title: 'Dashboards'             },
   { label: 'Perfil',    path: '/perfil',    title: 'Meu perfil'             },
@@ -26,7 +30,11 @@ const navItems: NavItem[] = [
 ]
 
 const visibleItems = computed(() =>
-  navItems.filter(item => !item.adminOnly || isAdmin),
+  navItems.filter(item => {
+    if (item.adminOnly) return isAdmin
+    if (item.monitoramentoAuth) return isAdmin || isCTO
+    return true
+  })
 )
 
 function isActive(path: string) {
@@ -63,6 +71,10 @@ function isActive(path: string) {
       <!-- Regras -->
       <svg v-else-if="item.path === '/regras'" class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+      <!-- Anomalias -->
+      <svg v-else-if="item.path === '/anomalias'" class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
       </svg>
       <!-- Histórico -->
       <svg v-else-if="item.path === '/historico'" class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

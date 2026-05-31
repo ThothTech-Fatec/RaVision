@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { WidgetConfig } from '@/data/boardMockData'
+import type { WidgetConfig } from '@/types/dashboard'
 
 defineProps<{
   config: WidgetConfig

@@ -59,7 +59,7 @@ const loadMeses = async () => {
     const res = await axios.get('http://localhost:8080/api/rh/meses-disponiveis', { headers: getHeaders() })
     mesesDisponiveis.value = res.data
     if (mesesDisponiveis.value.length > 0) {
-      selectedMes.value = mesesDisponiveis.value[0]
+      selectedMes.value = mesesDisponiveis.value[0] || ''
       await loadFuncionarios()
     }
   } catch (error) {
