@@ -72,10 +72,10 @@ O MVP contempla:
 | 10 | Alta | Como Gestor de RH, quero que o sistema identifique e aplique bônus sazonais como tempo de casa, prêmios por faixas de vendas e black friday, para incentivar a equipe corretamente. | 8 | 2 | ✅ Concluído|
 | 11 | Alta | Como Analista de Operações, quero que o assistente me explique passo a passo a matemática usada para chegar no valor final da comissão, para eu conseguir justificar o cálculo. | 13 | 2 | ✅ Concluído |
 | 12 | Média | Como Administrador de Regras, quero visualizar um histórico com os resultados dos processamentos anteriores, para ter rastreabilidade em caso de auditorias. | 8 | 2 | ✅ Concluído |
-| 13 | Média | Como Gestor de RH, quero que o sistema identifique anomalias no cálculo de comissionamento (ex: desvios relevantes ou vendas muito acima da média), para analisar inconsistências e fraudes antes do fechamento da folha. | 8 | 3 | ⏳ |
-| 14 | Média | Como Gestor de RH, quero visualizar painéis e gráficos com os totais de comissões pagas por loja e marca, para analisar rapidamente o impacto financeiro das campanhas do mês. | 13 | 3 | ⏳ |
-| 15 | Média | Como CTO da Dom Rock, quero monitorar o tempo de resposta e a quantidade de perguntas feitas ao assistente, para garantir que a plataforma está estável e eficiente. | 5 | 3 | ⏳ |
-| 16 | Baixa | Como Administrador de Regras, quero ser alertado na interface se as planilhas importadas contiverem erros (ex: funcionário sem data de admissão), para corrigir os dados antes de gerar os pagamentos. | 8 | 3 | ⏳ |
+| 13 | Média | Como Gestor de RH, quero que o sistema identifique anomalias no cálculo de comissionamento (ex: desvios relevantes ou vendas muito acima da média), para analisar inconsistências e fraudes antes do fechamento da folha. | 8 | 3 | ✅ Concluído |
+| 14 | Média | Como Gestor de RH, quero visualizar painéis e gráficos com os totais de comissões pagas por loja e marca, para analisar rapidamente o impacto financeiro das campanhas do mês. | 13 | 3 | ✅ Concluído |
+| 15 | Média | Como CTO da Dom Rock, quero monitorar o tempo de resposta e a quantidade de perguntas feitas ao assistente, para garantir que a plataforma está estável e eficiente. | 5 | 3 | ✅ Concluído |
+| 16 | Baixa | Como Administrador de Regras, quero ser alertado na interface se as planilhas importadas contiverem erros (ex: funcionário sem data de admissão), para corrigir os dados antes de gerar os pagamentos. | 8 | 3 | ✅ Concluído |
 
 
 ---
